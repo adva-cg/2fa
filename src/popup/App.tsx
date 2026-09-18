@@ -43,6 +43,7 @@ import { ProductHuntBanner } from '@/components/ProductHuntBanner';
 import { readActiveGroup, rememberActiveGroup, forgetActiveGroup } from '@/utils/active-group';
 import { helpUrl } from '@/utils/links';
 import { parseQRCode, generateRandomColor, UnsupportedOTPTypeError } from '@/utils/qr-parser';
+import { saveErrorMessage } from '@/utils/save-error';
 import { decodeQrFromImage } from '@/utils/qr-decode';
 import { cleanSecret, loadTimeOffset } from '@/utils/totp';
 import { getSuggestedAccountId, getBaseDomain, areSuggestionsEnabled, setSuggestionsEnabled } from '@/utils/suggestions';
@@ -472,10 +473,11 @@ function App() {
 
   const handleAddAccount = async (
     account: Account | Account[],
-    batch?: { index: number; total: number }
+    batch?: { index: number; total: number },
+    unsupported = 0
   ) => {
     if (Array.isArray(account)) {
-      const result = await addMultipleAccounts(account);
+      const result = { ...(await addMultipleAccounts(account)), unsupported };
       reload();
       revealAccount(account[0]);
       // One batch carries one group, so the first entry speaks for all of them.
@@ -490,7 +492,13 @@ function App() {
         describeImport(result, language, account[0]?.group) + more
       );
     } else {
-      await addAccount(account);
+      // A seed already in the list is skipped, and saying "Account added" over
+      // a list that did not change sends the user looking for a row that is
+      // not there.
+      if (!(await addAccount(account))) {
+        toast('info', t('accounts.alreadyExists'));
+        return;
+      }
       revealAccount(account);
       toast('success', account.group ? t('accounts.addedToGroup', account.group) : t('accounts.added'));
     }
@@ -508,14 +516,26 @@ function App() {
       danger: true,
     });
 
-    if (confirmed) {
+    if (!confirmed) return;
+    try {
       await deleteAccount(id);
       toast('success', t('accounts.deleted'));
+    } catch (error) {
+      // Silence here read as a delete that worked and an account that came back.
+      console.error('Could not delete the account:', error);
+      toast('error', t('accounts.deleteFailed'));
     }
   };
 
   const handleEditAccount = async (id: string, updates: Partial<Account>) => {
-    await updateAccount(id, updates);
+    try {
+      await updateAccount(id, updates);
+    } catch (error) {
+      console.error('Could not save the changes:', error);
+      toast('error', t('accounts.updateFailed'));
+      // Rethrown so the edit form stays open with what was typed.
+      throw error;
+    }
     // Only when the group was actually touched: an edit that leaves it alone
     // cannot have moved the account out of the current filter.
     if ('group' in updates) revealAccount(updates);
@@ -625,7 +645,14 @@ function App() {
           color: generateRandomColor(),
         }));
 
-        const result = await addMultipleAccounts(accountsToAdd);
+        let result;
+        try {
+          result = { ...(await addMultipleAccounts(accountsToAdd)), unsupported: parsed.skipped ?? 0 };
+        } catch (error) {
+          console.error('Could not save the scanned accounts:', error);
+          toast('error', saveErrorMessage(error, t));
+          return;
+        }
         reload();
         // A split Google Authenticator export is the common case for anyone with
         // more than ten accounts, and stopping after the first code is the
@@ -969,7 +996,7 @@ function App() {
         <div className="bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 p-3 flex items-start gap-2">
           <AlertTriangle className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" size={16} />
           <div className="text-xs text-red-800 dark:text-red-300 flex-1">
-            {error}
+            {t(error)}
           </div>
         </div>
       )}

@@ -346,6 +346,16 @@ type VaultTranslationKeys = {
   'accounts.addedToGroup': string;
   'accounts.updated': string;
   'accounts.deleted': string;
+  'accounts.alreadyExists': string;
+  'accounts.updateFailed': string;
+  'accounts.deleteFailed': string;
+  'import.qrSkipped': string;
+  'load.recovering': string;
+  'load.fromBackup': string;
+  'load.failed': string;
+  'scan.saveFailedTitle': string;
+  'scan.refusedTitle': string;
+  'scan.errorBody': string;
   'export.plainConfirmTitle': string;
   'addAccount.scanWithCamera': string;
   'scan.title': string;

@@ -26,6 +26,7 @@ import { toast } from '@/utils/ui-feedback';
 import { cleanSecret } from '@/utils/totp';
 import type { Account } from '@/types';
 import { describeImport, type ImportOutcome } from '@/utils/import-message';
+import { saveErrorMessage } from '@/utils/save-error';
 
 type Status =
   | { kind: 'starting' }
@@ -36,7 +37,9 @@ type Status =
   | { kind: 'locked' }
   | { kind: 'denied' }
   | { kind: 'noCamera' }
-  | { kind: 'error'; message: string };
+  // `title` defaults to the camera failing to start, the original case; a
+  // failed save or a refused code is not that and must not say so.
+  | { kind: 'error'; message: string; title?: string };
 
 export default function App() {
   const [language, setLanguage] = useState<Language>('en');
@@ -107,6 +110,7 @@ export default function App() {
         stopCamera();
         setStatus({
           kind: 'error',
+          title: t('scan.refusedTitle'),
           message:
             error instanceof UnsupportedOTPTypeError
               ? t('addAccount.errorHotp')
@@ -146,14 +150,19 @@ export default function App() {
 
       try {
         const result = await addMultipleAccounts(accounts);
-        setStatus({ kind: 'added', outcome: result, group: filteredGroup, batch: parsed.batch });
+        setStatus({
+          kind: 'added',
+          outcome: { ...result, unsupported: parsed.skipped ?? 0 },
+          group: filteredGroup,
+          batch: parsed.batch,
+        });
       } catch (error) {
         if (error instanceof VaultLockedError) {
           setStatus({ kind: 'locked' });
           return;
         }
         console.error('Failed to add scanned accounts:', error);
-        setStatus({ kind: 'error', message: String(error) });
+        setStatus({ kind: 'error', title: t('scan.saveFailedTitle'), message: saveErrorMessage(error, t) });
       }
     },
     [stopCamera]
@@ -188,7 +197,8 @@ export default function App() {
         // Same lazy import as the image path — jsQR only loads once a scan starts.
         decode = (await import('jsqr')).default;
       } catch (error) {
-        setStatus({ kind: 'error', message: String(error) });
+        console.error('Could not load the QR decoder:', error);
+        setStatus({ kind: 'error', message: t('scan.errorBody') });
         return;
       }
 
@@ -215,7 +225,8 @@ export default function App() {
         } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
           setStatus({ kind: 'noCamera' });
         } else {
-          setStatus({ kind: 'error', message: error instanceof Error ? error.message : String(error) });
+          console.error('Could not start the camera:', error);
+          setStatus({ kind: 'error', message: t('scan.errorBody') });
         }
         return;
       }
@@ -450,7 +461,7 @@ export default function App() {
       case 'locked':
         return { icon: Lock, tone: 'yellow', title: t('scan.lockedTitle'), body: t('scan.lockedBody') };
       case 'error':
-        return { icon: AlertTriangle, tone: 'red', title: t('scan.errorTitle'), body: status.message };
+        return { icon: AlertTriangle, tone: 'red', title: status.title ?? t('scan.errorTitle'), body: status.message };
       default:
         return null;
     }

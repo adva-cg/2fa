@@ -11,6 +11,7 @@ import {
 } from '@/utils/storage';
 import { markBackupDone } from '@/utils/backup-reminder';
 import { parseQRCode, generateRandomColor, UnsupportedOTPTypeError } from '@/utils/qr-parser';
+import { saveErrorMessage } from '@/utils/save-error';
 import { decodeQrFromImage } from '@/utils/qr-decode';
 import { cleanSecret } from '@/utils/totp';
 import { createT, type Language } from '@/utils/i18n';
@@ -293,7 +294,14 @@ export function ExportImport({ onImportComplete, onExportComplete, language }: E
         }));
 
         // Add all accounts at once
-        const importResult = await addMultipleAccounts(accountsToAdd);
+        let importResult;
+        try {
+          importResult = { ...(await addMultipleAccounts(accountsToAdd)), unsupported: parsed.skipped ?? 0 };
+        } catch (error) {
+          console.error('Could not save the scanned accounts:', error);
+          toast('error', saveErrorMessage(error, t));
+          return;
+        }
         onImportComplete();
         const summary = describeImport(importResult, language);
         const more = parsed.batch && parsed.batch.index < parsed.batch.total

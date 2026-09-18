@@ -12,6 +12,7 @@ import { check, resetState, scenario } from './harness';
 const SECRET = 'JBSWY3DPEHPK3PXP';
 
 export async function run(): Promise<void> {
+  await runSkippedNote();
   const uriImport = await import('@/utils/uri-import');
   const qr = await import('@/utils/qr-parser');
   const backupFile = await import('@/utils/backup-file');
@@ -89,4 +90,15 @@ export async function run(): Promise<void> {
   const locked = await uriImport.importURIList(`${link('locked@x.com')}\n`, 'en');
   check('reported as an error', locked.kind === 'error', locked.kind);
   check('and nothing was written', locked.added === undefined, JSON.stringify(locked));
+}
+
+// A Google Authenticator export with HOTP entries among the TOTP ones used to
+// report only what was added, and the user took that as the whole export.
+export async function runSkippedNote(): Promise<void> {
+  const { describeImport } = await import('@/utils/import-message');
+  scenario('A QR import names the entries it could not add');
+  check('the skipped entries are mentioned',
+    describeImport({ added: 8, skipped: 0, total: 8, unsupported: 2 }, 'en').includes('2 more'));
+  check('and nothing is added when there are none',
+    describeImport({ added: 8, skipped: 0, total: 8 }, 'en') === describeImport({ added: 8, skipped: 0, total: 8, unsupported: 0 }, 'en'));
 }

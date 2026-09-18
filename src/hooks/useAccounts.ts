@@ -14,10 +14,17 @@ import {
 import { autoBackup, getLatestBackup } from '@/utils/auto-backup';
 import { VaultLockedError } from '@/utils/vault';
 
+/**
+ * i18n keys, not sentences: this hook has no language, and English written here
+ * was what every locale saw.
+ */
+export type LoadError = 'load.recovering' | 'load.fromBackup' | 'load.failed';
+
 export function useAccounts(vaultLocked: boolean) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /** Why the list could not be loaded normally; App words it in the user's language. */
+  const [error, setError] = useState<LoadError | null>(null);
   /**
    * Records on disk that this device cannot read — ciphertext from another
    * vault, or a record whose decryption failed.
@@ -60,7 +67,7 @@ export function useAccounts(vaultLocked: boolean) {
       }
 
       console.error('Failed to load accounts:', error);
-      setError('Failed to load accounts. Attempting recovery...');
+      setError('load.recovering');
 
       // Try to recover from backup
       try {
@@ -69,16 +76,16 @@ export function useAccounts(vaultLocked: boolean) {
           const recovered = await decodeAccounts(backup.accounts);
           if (recovered.length > 0) {
             setAccounts(recovered);
-            setError('Loaded from backup. Please export your accounts for safety.');
+            setError('load.fromBackup');
           } else {
-            setError('Could not load accounts. Please import from backup if available.');
+            setError('load.failed');
           }
         } else {
-          setError('Could not load accounts. Please import from backup if available.');
+          setError('load.failed');
         }
       } catch (backupError) {
         console.error('Backup recovery failed:', backupError);
-        setError('Could not load accounts. Please import from backup.');
+        setError('load.failed');
       }
     } finally {
       setLoading(false);
@@ -111,9 +118,10 @@ export function useAccounts(vaultLocked: boolean) {
     return () => chrome.storage.onChanged.removeListener(onChanged);
   }, [vaultLocked, loadAccounts]);
 
-  const addAccount = async (account: Account) => {
-    await addAccountToStorage(account);
+  const addAccount = async (account: Account): Promise<boolean> => {
+    const added = await addAccountToStorage(account);
     await loadAccounts();
+    return added;
   };
 
   const deleteAccount = async (id: string) => {

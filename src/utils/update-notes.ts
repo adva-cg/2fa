@@ -63,4 +63,9 @@ export const WHATS_NEW: Record<string, UpdateHighlightKey[]> = {
   // someone in trouble. This one does: the daily copies have existed since
   // 1.10.0 and nothing could reach them, so nobody knew they were there.
   '1.13.2': ['update.feature.restoreBackups'],
+  // 1.13.2 never reached the store: this is the first build most people get
+  // after 1.13.1, and the modal is keyed by exact version, so the restore
+  // announcement moves here or nobody sees it. The fixes themselves are
+  // repairs, not something to announce.
+  '1.13.3': ['update.feature.restoreBackups'],
 };

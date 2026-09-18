@@ -58,6 +58,8 @@ export function EditAccountModal({ account, onClose, onSave, language, groups = 
     try {
       await onSave(account.id, updates);
       onClose();
+    } catch {
+      // The parent has already said so; staying open keeps what was typed.
     } finally {
       setSaving(false);
     }

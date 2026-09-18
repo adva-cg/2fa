@@ -42,6 +42,72 @@ export async function run(): Promise<void> {
   await flush();
   check('an explicit delete is still allowed', (areas.local.authenticator_accounts as any[]).length === 2);
 
+  // A user with 11 accounts had 22 records on disk: sync held the same seeds
+  // spelled differently, the merge took them for new accounts, decode folded
+  // them back. Every add then wrote "11 + 1" over 22 and was refused, forever.
+  const respelled = ACCOUNTS.map(a => ({ ...a, id: `${a.id}-sync`, secret: a.secret.toLowerCase().replace(/(.{4})/g, '$1 ').trim() }));
+  const extra = { id: 'a4', name: 'new', issuer: 'pub', secret: 'NSY2V7QAAAAAAAAA', algorithm: 'SHA1', digits: 6, period: 30, createdAt: 4 };
+
+  scenario('The merge does not take a respelled seed for a new account');
+  await resetState();
+  await storage.saveAccounts(respelled);
+  await flush();
+  areas.local.authenticator_accounts = ACCOUNTS.map(a => ({ ...a }));
+  await storage.getAccounts();
+  check('local keeps one record per seed', (areas.local.authenticator_accounts as any[]).length === 3,
+    `${(areas.local.authenticator_accounts as any[]).length} records`);
+
+  scenario('A store already holding duplicates still accepts new accounts');
+  await resetState();
+  areas.local.authenticator_accounts = [...ACCOUNTS.map(a => ({ ...a })), ...respelled];
+  check('the duplicates are folded for display', (await storage.getAccounts()).length === 3);
+  let addError: unknown = null;
+  await storage.addAccount(extra as any).catch(e => { addError = e; });
+  check('adding an account succeeds', addError === null, String(addError));
+  check('the new account is there', (await storage.getAccounts()).some(a => a.id === 'a4'));
+  check('writing fewer than the visible accounts is still refused',
+    await throwsNamed('Error', () => storage.saveAccounts([ACCOUNTS[0]])));
+
+  // A fresh install holds its first push until sync has had time to download.
+  // The replay of that push used to carry local only, and prune the rest.
+  scenario('Replaying a held push keeps the accounts that arrived from sync');
+  await resetStateFreshProfile();
+  await storage.getAccounts();
+  await storage.addAccount({ ...extra, id: 'fresh' } as any);
+  await flush();
+  const fromOldMachine = Array.from({ length: 30 }, (_, i) => ({
+    ...ACCOUNTS[0], id: `o${i}`, name: 'x'.repeat(300), secret: 'JBSWY3DPEHPK3PX' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'[i],
+  }));
+  areas.sync.authenticator_accounts_0 = fromOldMachine.slice(0, 15);
+  areas.sync.authenticator_accounts_1 = fromOldMachine.slice(15);
+  check('this device sees both', (await storage.getAccounts()).length === 31);
+  await flush();
+  const inCloud = syncAccountKeys().reduce((n, k) => n + (areas.sync[k] as any[]).length, 0);
+  check('the cloud copy keeps all of them', inCloud === 31, `${inCloud} in sync`);
+
+  // A password-manager export can carry one TOTP on two items, or one seed in
+  // two spellings. Both were stored, one was folded away on display, and the
+  // count said two were added.
+  scenario('Import folds duplicates inside the file and never reuses an id');
+  await resetState();
+  await storage.saveAccounts(ACCOUNTS);
+  const importFile = [
+    { ...extra, id: 'a1' },                                         // new seed, taken id
+    { ...extra, id: 'x2', secret: extra.secret.toLowerCase() },     // same seed again
+  ];
+  const imported = await storage.importAccounts(JSON.stringify(importFile));
+  const afterImport = await storage.getAccounts();
+  check('one account is reported added', imported.added === 1, String(imported.added));
+  check('one record is written', (areas.local.authenticator_accounts as any[]).length === 4,
+    `${(areas.local.authenticator_accounts as any[]).length} records`);
+  check('every id is unique', new Set(afterImport.map(a => a.id)).size === afterImport.length);
+  check('the original a1 is untouched', afterImport.find(a => a.id === 'a1')?.secret === ACCOUNTS[0].secret);
+
+  scenario('Adding a seed that is already here says so');
+  check('a new seed reports added', await storage.addAccount({ ...extra, id: 'y1', secret: 'KRUGS4ZANFZSAYJA' } as any));
+  check('the same seed again reports not added',
+    !(await storage.addAccount({ ...extra, id: 'y2', secret: 'kruGS4ZA NFZSAYJA' } as any)));
+
   // A drag in the popup used to delete anything the stale React state had not
   // mentioned — e.g. an account the scanner tab had just added.
   scenario('Reorder with a stale id list keeps the accounts it was not told about');
