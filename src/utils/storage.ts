@@ -814,7 +814,7 @@ async function readStored(persist: boolean): Promise<StoredRead> {
   // sync until this device is unlocked. Persisting it as it came meant a live
   // vault with readable secrets on disk beneath it — pushed back up to sync from
   // there on every save.
-  const arriving = await sealArrivals(additions);
+  const arriving = await sealArrivals(additions, localAccounts);
   const { records, changed } = repairIds([...localAccounts, ...arriving]);
   if (arriving.length === 0 && !changed) {
     return { records, revision, dirty: false, syncReadable };
@@ -878,7 +878,10 @@ async function syncAdditions(
  * the unlock merges them again and seals them then. Only arrivals — this
  * device's own records are never dropped here, whatever shape they are in.
  */
-async function sealArrivals(additions: StoredAccount[]): Promise<StoredAccount[]> {
+async function sealArrivals(
+  additions: StoredAccount[],
+  localAccounts: StoredAccount[]
+): Promise<StoredAccount[]> {
   const isCleartext = (record: StoredAccount) => isUsableRecord(record) && !isEncryptedAccount(record);
   if (!additions.some(isCleartext)) return additions;
 
@@ -886,11 +889,27 @@ async function sealArrivals(additions: StoredAccount[]): Promise<StoredAccount[]
   if (!meta) return additions;
   if (!(await getMasterKeyBytes())) return additions.filter(record => !isCleartext(record));
 
-  return Promise.all(
-    additions.map(async record =>
-      isCleartext(record) ? (await encodeAccounts([withTextFields(record as Account)], meta))[0] : record
-    )
-  );
+  // Sealed in its cleaned spelling, and dropped when local already holds that
+  // fingerprint. The cleartext copy stays in sync until some save pushes over
+  // it, and the merge compares it by secret while the sealed copy in local is
+  // compared by fingerprint — so without this every read took it for a new
+  // arrival, sealed it again and appended it again. Each of those writes fired
+  // onChanged, every open window reloaded, and the loop fed itself: hundreds of
+  // records and storage events a second, from one old device pushing cleartext.
+  const present = new Set(localAccounts.filter(isEncryptedAccount).map(record => record.fp));
+  const sealed: StoredAccount[] = [];
+  for (const record of additions) {
+    if (!isCleartext(record)) {
+      sealed.push(record);
+      continue;
+    }
+    const account = withTextFields({ ...(record as Account), secret: cleanSecret((record as Account).secret) });
+    const [encrypted] = await encodeAccounts([account], meta);
+    if (present.has((encrypted as EncryptedAccount).fp)) continue;
+    present.add((encrypted as EncryptedAccount).fp);
+    sealed.push(encrypted);
+  }
+  return sealed;
 }
 
 /**

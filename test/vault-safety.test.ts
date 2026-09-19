@@ -396,6 +396,19 @@ export async function run(): Promise<void> {
     const visible = await storage.getAccounts();
     check('the account from the older device is shown', visible.some(a => a.id === 'old-device'));
     check('and stored as ciphertext', !storedRecords().some(isCleartext), JSON.stringify(storedRecords().map(r => r.id)));
+    // The cleartext copy is still in sync, compared by secret, while the
+    // sealed one in local is compared by fingerprint. Sealing it again on every
+    // read appended a copy per read, and each write fired the reload that did
+    // the next one.
+    const settled = storedRecords().length;
+    let events = 0;
+    const count = (changes: any, area: string) => { if (storage.affectsStoredAccounts(area, changes)) events++; };
+    chrome.storage.onChanged.addListener(count);
+    for (let i = 0; i < 5; i++) await storage.getAccounts();
+    await flush();
+    chrome.storage.onChanged.removeListener(count);
+    check('later reads do not seal it again', storedRecords().length === settled, `${settled} → ${storedRecords().length}`);
+    check('and write nothing', events === 0, `${events} storage events`);
   }
   await vault.lock();
   areas.sync.authenticator_accounts_6 = [{ ...ACCOUNTS[0], id: 'while-locked', secret: 'ONSWG4TFORZTA5DI' }];
