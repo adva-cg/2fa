@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} حساب في نسخة تلقائية",
   "restore.offerBody": "أُنشئت {0} على هذا الجهاز. يمكن إعادتها.",
   "restore.offerAction": "استعادة {0} حساب",
+  "edit.secretHint": "لا يمكن لهذا المفتاح إنشاء رموز. الصق المفتاح الصحيح من صفحة إعداد المصادقة الثنائية لدى الخدمة.",
+  "edit.secretDuplicate": "هذا المفتاح مستخدم بالفعل في حساب آخر.",
+  "accounts.notFound": "هذا الحساب لم يعد موجودًا — فقد حُذف في نافذة أخرى.",
+  "accounts.reorderFailed": "تعذّر حفظ الترتيب الجديد. يُرجى المحاولة مرة أخرى.",
+  "settings.syncFailed": "المزامنة مفعّلة، لكن تعذّر رفع حساباتك إلى حسابك على Google.",
+  "import.imageUnreadable": "تعذّر فتح هذه الصورة. جرّب لقطة شاشة بصيغة PNG أو JPG.",
+  "crash.title": "حدث خطأ ما",
+  "crash.body": "لا تزال حساباتك محفوظة على هذا الجهاز. أعد التحميل للمحاولة مرة أخرى، أو احفظ نسخة منها في ملف أولًا.",
+  "crash.reload": "إعادة التحميل",
+  "crash.saveCopy": "احفظ نسخة من حساباتي",
+  "scan.cameraN": "الكاميرا {0}",
+  "recovery.saveCopyFailed": "تعذّر حفظ النسخة. يُرجى المحاولة مرة أخرى.",
 };
 
 export default strings;

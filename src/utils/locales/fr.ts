@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} compte(s) dans une copie automatique",
   "restore.offerBody": "Faite {0}, sur cet appareil. Ils peuvent être récupérés.",
   "restore.offerAction": "Restaurer {0} compte(s)",
+  "edit.secretHint": "Cette clé ne peut pas générer de codes. Collez la bonne depuis la page de configuration 2FA du service.",
+  "edit.secretDuplicate": "Un autre compte utilise déjà cette clé.",
+  "accounts.notFound": "Ce compte n'existe plus — il a été supprimé dans une autre fenêtre.",
+  "accounts.reorderFailed": "Le nouvel ordre n'a pas pu être enregistré. Veuillez réessayer.",
+  "settings.syncFailed": "La synchronisation est activée, mais vos comptes n'ont pas pu être envoyés vers votre compte Google.",
+  "import.imageUnreadable": "Impossible d'ouvrir cette image. Essayez une capture d'écran en PNG ou JPG.",
+  "crash.title": "Une erreur s'est produite",
+  "crash.body": "Vos comptes sont toujours enregistrés sur cet appareil. Rechargez pour réessayer, ou enregistrez-en d'abord une copie dans un fichier.",
+  "crash.reload": "Recharger",
+  "crash.saveCopy": "Enregistrer une copie de mes comptes",
+  "scan.cameraN": "Caméra {0}",
+  "recovery.saveCopyFailed": "La copie n'a pas pu être enregistrée. Veuillez réessayer.",
 };
 
 export default strings;

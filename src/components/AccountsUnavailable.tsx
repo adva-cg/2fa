@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { AlertTriangle, Download, RefreshCw, Upload } from 'lucide-react';
 import { createT, type Language } from '@/utils/i18n';
+import { toast } from '@/utils/ui-feedback';
 
 interface AccountsUnavailableProps {
   /** Records on disk this device cannot decrypt. */
@@ -64,7 +65,11 @@ export function AccountsUnavailable({
       link.click();
       URL.revokeObjectURL(url);
     } catch (error) {
+      // Said out loud: this button is pressed by someone who already believes
+      // their accounts may be gone, and a click that does nothing reads as
+      // confirmation that there is nothing left to save.
       console.error('Recovery export failed:', error);
+      toast('error', t('recovery.saveCopyFailed'));
     }
   };
 

@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} akun dalam salinan otomatis",
   "restore.offerBody": "Dibuat {0}, di perangkat ini. Bisa dikembalikan.",
   "restore.offerAction": "Pulihkan {0} akun",
+  "edit.secretHint": "Kunci ini tidak dapat menghasilkan kode. Tempel kunci yang benar dari halaman penyiapan 2FA layanan tersebut.",
+  "edit.secretDuplicate": "Akun lain sudah menggunakan kunci ini.",
+  "accounts.notFound": "Akun ini sudah tidak ada — akun dihapus di jendela lain.",
+  "accounts.reorderFailed": "Urutan baru tidak dapat disimpan. Silakan coba lagi.",
+  "settings.syncFailed": "Sinkronisasi aktif, tetapi akun Anda tidak dapat diunggah ke Akun Google Anda.",
+  "import.imageUnreadable": "Gambar itu tidak dapat dibuka. Coba tangkapan layar PNG atau JPG.",
+  "crash.title": "Terjadi kesalahan",
+  "crash.body": "Akun Anda masih tersimpan di perangkat ini. Muat ulang untuk mencoba lagi, atau simpan salinannya ke file terlebih dahulu.",
+  "crash.reload": "Muat ulang",
+  "crash.saveCopy": "Simpan salinan akun saya",
+  "scan.cameraN": "Kamera {0}",
+  "recovery.saveCopyFailed": "Salinan tidak dapat disimpan. Silakan coba lagi.",
 };
 
 export default strings;

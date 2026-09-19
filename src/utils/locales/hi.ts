@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "स्वचालित प्रति में {0} खाते",
   "restore.offerBody": "इस डिवाइस पर {0} बनी। इन्हें वापस लाया जा सकता है।",
   "restore.offerAction": "{0} खाते पुनर्स्थापित करें",
+  "edit.secretHint": "इस कुंजी से कोड नहीं बन सकते। सेवा के 2FA सेटअप पेज से सही कुंजी चिपकाएँ।",
+  "edit.secretDuplicate": "यह कुंजी पहले से किसी दूसरे खाते में इस्तेमाल हो रही है।",
+  "accounts.notFound": "यह खाता अब मौजूद नहीं है — इसे किसी दूसरी विंडो में हटा दिया गया।",
+  "accounts.reorderFailed": "नया क्रम सहेजा नहीं जा सका। कृपया फिर से कोशिश करें।",
+  "settings.syncFailed": "सिंक चालू है, लेकिन आपके खाते आपके Google खाते में अपलोड नहीं हो सके।",
+  "import.imageUnreadable": "यह इमेज खोली नहीं जा सकी। PNG या JPG स्क्रीनशॉट आज़माएँ।",
+  "crash.title": "कुछ गलत हो गया",
+  "crash.body": "आपके खाते अब भी इस डिवाइस पर सहेजे हुए हैं। फिर से कोशिश करने के लिए रीलोड करें, या पहले उनकी एक कॉपी फ़ाइल में सहेज लें।",
+  "crash.reload": "रीलोड करें",
+  "crash.saveCopy": "मेरे खातों की कॉपी सहेजें",
+  "scan.cameraN": "कैमरा {0}",
+  "recovery.saveCopyFailed": "कॉपी सहेजी नहीं जा सकी। कृपया फिर से कोशिश करें।",
 };
 
 export default strings;

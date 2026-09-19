@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} konto(n) i en automatisk kopia",
   "restore.offerBody": "Togs {0}, på den här enheten. De kan hämtas tillbaka.",
   "restore.offerAction": "Återställ {0} konto(n)",
+  "edit.secretHint": "Den här nyckeln kan inte ge några koder. Klistra in rätt nyckel från tjänstens sida för 2FA-inställning.",
+  "edit.secretDuplicate": "Ett annat konto använder redan den här nyckeln.",
+  "accounts.notFound": "Det här kontot finns inte längre — det togs bort i ett annat fönster.",
+  "accounts.reorderFailed": "Den nya ordningen kunde inte sparas. Försök igen.",
+  "settings.syncFailed": "Synkning är på, men dina konton kunde inte laddas upp till ditt Google-konto.",
+  "import.imageUnreadable": "Bilden kunde inte öppnas. Prova en skärmbild i PNG eller JPG.",
+  "crash.title": "Något gick fel",
+  "crash.body": "Dina konton finns fortfarande sparade på den här enheten. Ladda om för att försöka igen, eller spara först en kopia av dem i en fil.",
+  "crash.reload": "Ladda om",
+  "crash.saveCopy": "Spara en kopia av mina konton",
+  "scan.cameraN": "Kamera {0}",
+  "recovery.saveCopyFailed": "Kopian kunde inte sparas. Försök igen.",
 };
 
 export default strings;

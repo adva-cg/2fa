@@ -129,9 +129,11 @@ export function useAccounts(vaultLocked: boolean) {
     await loadAccounts();
   };
 
-  const updateAccount = async (id: string, updates: Partial<Account>) => {
-    await updateAccountInStorage(id, updates);
+  /** `false` when the account was no longer there to update — deleted in another window. */
+  const updateAccount = async (id: string, updates: Partial<Account>): Promise<boolean | void> => {
+    const found: boolean | void = await updateAccountInStorage(id, updates);
     await loadAccounts();
+    return found;
   };
 
   const reorderAccounts = async (accountIds: string[]) => {

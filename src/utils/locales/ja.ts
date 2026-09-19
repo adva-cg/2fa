@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "自動バックアップに {0} 件のアカウント",
   "restore.offerBody": "この端末で{0}に作成されました。戻すことができます。",
   "restore.offerAction": "{0} 件を復元",
+  "edit.secretHint": "このキーではコードを生成できません。サービスの2FA設定ページから正しいキーを貼り付けてください。",
+  "edit.secretDuplicate": "このキーはすでに別のアカウントで使われています。",
+  "accounts.notFound": "このアカウントはもう存在しません。別のウィンドウで削除されました。",
+  "accounts.reorderFailed": "新しい並び順を保存できませんでした。もう一度お試しください。",
+  "settings.syncFailed": "同期はオンですが、アカウントをGoogleアカウントにアップロードできませんでした。",
+  "import.imageUnreadable": "この画像を開けませんでした。PNGまたはJPGのスクリーンショットをお試しください。",
+  "crash.title": "問題が発生しました",
+  "crash.body": "アカウントはこのデバイスに保存されたままです。再読み込みしてもう一度お試しいただくか、先にコピーをファイルに保存してください。",
+  "crash.reload": "再読み込み",
+  "crash.saveCopy": "アカウントのコピーを保存",
+  "scan.cameraN": "カメラ {0}",
+  "recovery.saveCopyFailed": "コピーを保存できませんでした。もう一度お試しください。",
 };
 
 export default strings;

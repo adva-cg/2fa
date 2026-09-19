@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} cuenta(s) en una copia automática",
   "restore.offerBody": "Hecha {0}, en este dispositivo. Se pueden recuperar.",
   "restore.offerAction": "Restaurar {0} cuenta(s)",
+  "edit.secretHint": "Esta clave no puede generar códigos. Pega la correcta desde la página de configuración de 2FA del servicio.",
+  "edit.secretDuplicate": "Otra cuenta ya usa esta clave.",
+  "accounts.notFound": "Esta cuenta ya no existe: se eliminó en otra ventana.",
+  "accounts.reorderFailed": "No se pudo guardar el nuevo orden. Inténtalo de nuevo.",
+  "settings.syncFailed": "La sincronización está activada, pero no se pudieron subir tus cuentas a tu cuenta de Google.",
+  "import.imageUnreadable": "No se pudo abrir esa imagen. Prueba con una captura en PNG o JPG.",
+  "crash.title": "Algo salió mal",
+  "crash.body": "Tus cuentas siguen guardadas en este dispositivo. Recarga para volver a intentarlo o guarda antes una copia en un archivo.",
+  "crash.reload": "Recargar",
+  "crash.saveCopy": "Guardar una copia de mis cuentas",
+  "scan.cameraN": "Cámara {0}",
+  "recovery.saveCopyFailed": "No se pudo guardar la copia. Inténtalo de nuevo.",
 };
 
 export default strings;
