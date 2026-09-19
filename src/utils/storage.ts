@@ -523,6 +523,21 @@ function identityOf(record: StoredAccount): string {
   return isEncryptedAccount(record) ? record.fp : record.secret;
 }
 
+/**
+ * What the local/sync merge compares by.
+ *
+ * Not identityOf: that is the raw secret, while decodeRecords collapses
+ * duplicates by the normalised one. A sync copy spelling a seed differently
+ * (lowercase, spaced, padded) passed the merge as a new account, was persisted
+ * to local, then collapsed again on decode — so the store held more records
+ * than the UI could see, and saveAccounts' shrink guard refused every add from
+ * then on. identityOf itself stays raw: tombstones already on disk are hashes
+ * of it.
+ */
+function mergeKey(record: StoredAccount): string {
+  return isEncryptedAccount(record) ? record.fp : secretKey(record.secret);
+}
+
 // Local is the primary store (10MB quota, fast, reliable).
 // Sync is a best-effort secondary for cross-device backup — it has an 8KB/item
 // limit and silently fails for users with many accounts, so we never let it
@@ -550,40 +565,57 @@ export async function getStoredAccounts(): Promise<StoredAccount[]> {
     // is populated; a thrown read says nothing and must not start the clock.
     if (syncReadable) {
       await noteSyncRead(syncAccounts.length, localAccounts.length);
-      await replayHeldSyncPush(localAccounts);
     }
 
-    if (syncAccounts.length === 0) {
-      return localAccounts;
+    const merged = await mergeSyncIntoLocal(localAccounts, syncAccounts);
+
+    // The replay is a forced push that prunes every chunk beyond what it
+    // writes, so it has to carry the merged list. Replaying local alone cut the
+    // cloud copy to this device's accounts at the exact moment another
+    // device's arrived — a fresh install with one new account, meeting thirty
+    // from the old machine, left one in sync.
+    if (syncReadable) {
+      await replayHeldSyncPush(merged);
     }
 
-    const seen = new Set(localAccounts.map(identityOf));
-    const candidates = syncAccounts.filter(acc => !seen.has(identityOf(acc)));
-
-    if (candidates.length === 0) {
-      return localAccounts;
-    }
-
-    // "In sync but not local" is usually another device's account — but it is
-    // also exactly what a record this device just deleted looks like, until the
-    // sync write catches up. Without this the reload after a delete put the
-    // account straight back, and a second delete was needed to make it stick.
-    const wasDeletedHere = await deletedHere();
-    const additions: StoredAccount[] = [];
-    for (const acc of candidates) {
-      if (!(await wasDeletedHere(identityOf(acc)))) additions.push(acc);
-    }
-
-    if (additions.length === 0) {
-      return localAccounts;
-    }
-
-    const merged = [...localAccounts, ...additions];
-    // Persist merge so subsequent reads are stable and the auto-backup
-    // reflects the full set.
-    await chrome.storage.local.set({ [STORAGE_KEY]: merged }).catch(() => {});
     return merged;
   });
+}
+
+async function mergeSyncIntoLocal(
+  localAccounts: StoredAccount[],
+  syncAccounts: StoredAccount[]
+): Promise<StoredAccount[]> {
+  if (syncAccounts.length === 0) {
+    return localAccounts;
+  }
+
+  const seen = new Set(localAccounts.map(mergeKey));
+  const candidates = syncAccounts.filter(acc => !seen.has(mergeKey(acc)));
+
+  if (candidates.length === 0) {
+    return localAccounts;
+  }
+
+  // "In sync but not local" is usually another device's account — but it is
+  // also exactly what a record this device just deleted looks like, until the
+  // sync write catches up. Without this the reload after a delete put the
+  // account straight back, and a second delete was needed to make it stick.
+  const wasDeletedHere = await deletedHere();
+  const additions: StoredAccount[] = [];
+  for (const acc of candidates) {
+    if (!(await wasDeletedHere(identityOf(acc)))) additions.push(acc);
+  }
+
+  if (additions.length === 0) {
+    return localAccounts;
+  }
+
+  const merged = [...localAccounts, ...additions];
+  // Persist merge so subsequent reads are stable and the auto-backup
+  // reflects the full set.
+  await chrome.storage.local.set({ [STORAGE_KEY]: merged }).catch(() => {});
+  return merged;
 }
 
 /**
@@ -612,6 +644,20 @@ export interface SaveOptions {
   awaitSync?: boolean;
 }
 
+/**
+ * How many records a read of `stored` yields: accounts plus quarantine.
+ *
+ * The shrink guard has to count what the caller could have seen, not raw
+ * records. Duplicates of one seed collapse on decode, and a store that already
+ * held some — merged in by an older build, or two encodings of one seed from
+ * encrypted and cleartext devices — made every save "a shrink", so nothing
+ * could be added ever again.
+ */
+async function visibleCount(stored: StoredAccount[]): Promise<number> {
+  const { accounts, held } = await decodeRecords(stored);
+  return accounts.length + held.length;
+}
+
 export async function saveAccounts(accounts: Account[], options: SaveOptions = {}): Promise<void> {
   const records = [...(await encodeAccounts(accounts)), ...quarantined];
 
@@ -620,7 +666,7 @@ export async function saveAccounts(accounts: Account[], options: SaveOptions = {
   // the store, and it says so explicitly.
   if (!options.allowShrink) {
     const existing = (await chrome.storage.local.get(STORAGE_KEY))[STORAGE_KEY];
-    const existingCount = Array.isArray(existing) ? existing.length : 0;
+    const existingCount = Array.isArray(existing) ? await visibleCount(existing) : 0;
     if (records.length < existingCount) {
       throw new Error(
         `Refusing to save ${records.length} accounts over ${existingCount} already stored`
@@ -704,7 +750,7 @@ async function readRevision(): Promise<number> {
  */
 async function mutateAccounts<T>(
   apply: (accounts: Account[], stored: StoredAccount[]) => { accounts: Account[]; result: T },
-  options: SaveOptions = {}
+  options: SaveOptions & { beforeSave?: (result: T) => Promise<void> } = {}
 ): Promise<T> {
   const run = async (): Promise<T> => {
     // Three attempts, not one: two is enough for a single competing writer, and
@@ -721,6 +767,7 @@ async function mutateAccounts<T>(
       const after = await readRevision();
       if (after !== before && attempt < 2) continue;
 
+      await options.beforeSave?.(result);
       await saveAccounts(accounts, options);
       return result;
     }
@@ -733,8 +780,9 @@ async function mutateAccounts<T>(
   return next;
 }
 
-export async function addAccount(account: Account): Promise<void> {
-  await mutateAccounts(accounts => {
+/** False when the seed was already here, so nothing was written. */
+export async function addAccount(account: Account): Promise<boolean> {
+  return mutateAccounts(accounts => {
     // Deduplicated like every other way in, which this one was not.
     //
     // getAccounts collapses records that share a secret, so a second record
@@ -746,25 +794,17 @@ export async function addAccount(account: Account): Promise<void> {
     // good under a cheerful "Account added".
     const key = secretKey(account.secret);
     if (accounts.some(existing => secretKey(existing.secret) === key)) {
-      return { accounts, result: undefined };
+      return { accounts, result: false };
     }
-    return { accounts: [...accounts, account], result: undefined };
+    return { accounts: [...accounts, account], result: true };
   });
 }
 
 export async function addMultipleAccounts(
   newAccounts: Account[]
 ): Promise<{ added: number; skipped: number; total: number }> {
-  return mutateAccounts(accounts => {
-    // Dedupe against existing accounts AND within the new batch itself
-    const seenSecrets = new Set(accounts.map(acc => secretKey(acc.secret)));
-    const uniqueAccounts: Account[] = [];
-    for (const acc of newAccounts) {
-      if (!seenSecrets.has(secretKey(acc.secret))) {
-        seenSecrets.add(secretKey(acc.secret));
-        uniqueAccounts.push(acc);
-      }
-    }
+  return mutateAccounts((accounts, stored) => {
+    const uniqueAccounts = newAccountsFrom(newAccounts, accounts, stored, 'added');
 
     return {
       accounts: [...accounts, ...uniqueAccounts],
@@ -820,7 +860,7 @@ export async function deleteAccount(id: string): Promise<void> {
   // guard steps aside for it — which is precisely when an account added in
   // another surface has nothing standing between it and being written over.
   // Going through the queue is what replaces the guard here.
-  const removed = await mutateAccounts(
+  await mutateAccounts(
     (accounts, stored) => ({
       accounts: accounts.filter(acc => acc.id !== id),
       // The identity is taken from the stored record rather than recomputed
@@ -829,10 +869,17 @@ export async function deleteAccount(id: string): Promise<void> {
       // the secret when it is not.
       result: stored.filter(record => record.id === id).map(identityOf),
     }),
-    { allowShrink: true, awaitSync: true }
+    {
+      allowShrink: true,
+      awaitSync: true,
+      // Before the write, not after it. The local write fires onChanged, and
+      // since 1.13.0 every open surface reloads on it — a read that sees the
+      // stale sync copy and no tombstone yet merges the account straight back.
+      // saveAccounts only forgets identities still present, so an early marker
+      // survives the save it precedes.
+      beforeSave: identities => markDeleted(identities).catch(() => {}),
+    }
   );
-
-  await markDeleted(removed).catch(() => {});
 }
 
 export async function exportAccounts(): Promise<string> {
@@ -946,11 +993,8 @@ export async function importAccountList(importedAccounts: Account[]): Promise<Im
     throw new Error('Invalid account structure');
   }
 
-  return mutateAccounts(existingAccounts => {
-    const existingSecrets = new Set(existingAccounts.map(acc => secretKey(acc.secret)));
-
-    // Merge: keep existing accounts and add only new ones (deduplicate by secret)
-    const newAccounts = usable.filter(acc => !existingSecrets.has(secretKey(acc.secret)));
+  return mutateAccounts((existingAccounts, stored) => {
+    const newAccounts = newAccountsFrom(usable, existingAccounts, stored, 'imported');
 
     return {
       accounts: [...existingAccounts, ...newAccounts],
@@ -1008,35 +1052,7 @@ export async function restoreFromSnapshot(records: StoredAccount[]): Promise<Res
   }
 
   return mutateAccounts((existingAccounts, stored) => {
-    const known = new Set(existingAccounts.map(acc => secretKey(acc.secret)));
-    // Ids from the stored records too, not only the decoded ones: a record this
-    // device cannot read still occupies its id, and it is invisible to the list
-    // the caller sees.
-    const usedIds = new Set([...existingAccounts.map(acc => acc.id), ...stored.map(record => record.id)]);
-    const additions: Account[] = [];
-
-    for (const account of usable) {
-      const key = secretKey(account.secret);
-      if (known.has(key)) continue;
-      known.add(key);
-
-      // Same id, different secret: two accounts, one identity. `deleteAccount`
-      // filters the list by id, so deleting either would have deleted both —
-      // and that is one click away from the screen this restore is offered on.
-      // Ids survive an export and an import, so a hand-edited backup or a file
-      // restored twice under different secrets is all it takes.
-      if (usedIds.has(account.id)) {
-        let candidate = `${account.id}-restored`;
-        for (let n = 2; usedIds.has(candidate); n++) candidate = `${account.id}-restored-${n}`;
-        additions.push({ ...account, id: candidate });
-        usedIds.add(candidate);
-        continue;
-      }
-
-      usedIds.add(account.id);
-      additions.push(account);
-    }
-
+    const additions = newAccountsFrom(usable, existingAccounts, stored, 'restored');
     return {
       accounts: [...existingAccounts, ...additions],
       result: {
@@ -1046,6 +1062,51 @@ export async function restoreFromSnapshot(records: StoredAccount[]): Promise<Res
       },
     };
   });
+}
+
+/**
+ * The accounts in `incoming` that are not already here, safe to append.
+ *
+ * Deduplicated against the store AND against each other: a file can carry one
+ * seed twice — a password manager export with the same TOTP on two items, or
+ * one secret in two spellings. Appending both stored a record the list folds
+ * away, and the count said two were added where one appeared.
+ */
+function newAccountsFrom(
+  incoming: Account[],
+  existingAccounts: Account[],
+  stored: StoredAccount[],
+  idSuffix: string
+): Account[] {
+  const known = new Set(existingAccounts.map(acc => secretKey(acc.secret)));
+  // Ids from the stored records too, not only the decoded ones: a record this
+  // device cannot read still occupies its id, and it is invisible to the list
+  // the caller sees.
+  const usedIds = new Set([...existingAccounts.map(acc => acc.id), ...stored.map(record => record.id)]);
+  const additions: Account[] = [];
+
+  for (const account of incoming) {
+    const key = secretKey(account.secret);
+    if (known.has(key)) continue;
+    known.add(key);
+
+    // Same id, different secret: two accounts, one identity. `deleteAccount`
+    // filters the list by id, so deleting either would have deleted both.
+    // Ids survive an export and an import, so a hand-edited backup or a file
+    // restored twice under different secrets is all it takes.
+    if (usedIds.has(account.id)) {
+      let candidate = `${account.id}-${idSuffix}`;
+      for (let n = 2; usedIds.has(candidate); n++) candidate = `${account.id}-${idSuffix}-${n}`;
+      additions.push({ ...account, id: candidate });
+      usedIds.add(candidate);
+      continue;
+    }
+
+    usedIds.add(account.id);
+    additions.push(account);
+  }
+
+  return additions;
 }
 
 // --- vault migration ------------------------------------------------------

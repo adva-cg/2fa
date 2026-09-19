@@ -1,6 +1,6 @@
 {
   "name": "authenticator-extension",
-  "version": "1.13.2",
+  "version": "1.13.3",
   "description": "Modern Authenticator Chrome Extension",
   "type": "module",
   "scripts": {

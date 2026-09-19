@@ -200,4 +200,51 @@ export async function run(): Promise<void> {
     storedIds().join() === 'a1,c3',
     storedIds().join()
   );
+
+  // Every open surface reloads on onChanged, so the local write inside a delete
+  // triggers a read while sync still holds the old list. With the tombstone
+  // written only after the save, that read merged the account straight back.
+  // The mocked storage resolves as microtasks and never shows the race, so this
+  // one runs with real latency.
+  for (const withVault of [false, true]) {
+    scenario(`A reload during a delete does not bring the account back${withVault ? ' (vault on)' : ''}`);
+    await resetState();
+    await storage.saveAccounts([account('a1', SEEDS[0]), account('b2', SEEDS[1])] as any);
+    await flush();
+    if (withVault) {
+      await (await storage.prepareVault('correct horse battery staple')).commit();
+      await flush();
+    }
+    const restore = withLatency(2);
+    const reload = (changes: any, area: string) => {
+      if (storage.affectsStoredAccounts(area, changes)) storage.getAccounts().catch(() => {});
+    };
+    chrome.storage.onChanged.addListener(reload);
+    try {
+      await storage.deleteAccount('b2');
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await flush();
+    } finally {
+      chrome.storage.onChanged.removeListener(reload);
+      restore();
+    }
+    const visible = (await storage.getAccounts()).map(a => a.id).join();
+    check('the deleted account stays deleted', visible === 'a1', visible);
+  }
+}
+
+function withLatency(ms: number): () => void {
+  const originals: Array<() => void> = [];
+  for (const name of ['local', 'sync'] as const) {
+    const area: any = chrome.storage[name];
+    for (const method of ['get', 'set', 'remove']) {
+      const original = area[method];
+      area[method] = async (...args: unknown[]) => {
+        await new Promise(resolve => setTimeout(resolve, ms));
+        return original.apply(area, args);
+      };
+      originals.push(() => { area[method] = original; });
+    }
+  }
+  return () => originals.forEach(undo => undo());
 }
