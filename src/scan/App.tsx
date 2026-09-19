@@ -16,7 +16,8 @@ import type jsQRType from 'jsqr';
 import { Logo } from '@/components/Logo';
 import { FeedbackHost } from '@/components/FeedbackHost';
 import { SupportFooter } from '@/components/SupportFooter';
-import { applyDocumentLanguage, createT, detectLanguage, loadLanguage, type Language } from '@/utils/i18n';
+import { applyDocumentLanguage, createT, loadLanguage, resolveLanguage, type Language, type TranslationKey } from '@/utils/i18n';
+import { settingsFromChanges } from '@/utils/settings-watch';
 import { addMultipleAccounts } from '@/utils/storage';
 import { readActiveGroup } from '@/utils/active-group';
 import { VaultLockedError } from '@/utils/vault';
@@ -26,7 +27,7 @@ import { toast } from '@/utils/ui-feedback';
 import { cleanSecret } from '@/utils/totp';
 import type { Account } from '@/types';
 import { describeImport, type ImportOutcome } from '@/utils/import-message';
-import { saveErrorMessage } from '@/utils/save-error';
+import { saveErrorKey } from '@/utils/save-error';
 
 type Status =
   | { kind: 'starting' }
@@ -39,13 +40,22 @@ type Status =
   | { kind: 'noCamera' }
   // `title` defaults to the camera failing to start, the original case; a
   // failed save or a refused code is not that and must not say so.
-  | { kind: 'error'; message: string; title?: string };
+  //
+  // Keys, not sentences. A sentence is written in whatever language is active
+  // at the moment of failure, and on this page that moment can come before the
+  // locale's chunk has loaded — the camera is started on mount, alongside the
+  // language read — so the card stayed English for the life of the tab. A key
+  // is translated when the card is drawn, in the language of that render.
+  | { kind: 'error'; body: TranslationKey; title?: TranslationKey };
 
 export default function App() {
   const [language, setLanguage] = useState<Language>('en');
   const [darkMode, setDarkMode] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: 'starting' });
-  /** Every video input, listed once a grant makes the labels readable. */
+  /**
+   * Every video input, listed once a grant makes the labels readable. An empty
+   * label is kept empty and named at render, for the same reason as above.
+   */
   const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
   /** The device the live stream is actually using, so the picker shows it. */
   const [cameraId, setCameraId] = useState('');
@@ -70,6 +80,11 @@ export default function App() {
   const decodingImageRef = useRef(false);
 
   const t = createT(language);
+  // The callbacks below are memoised — the document listeners hang off them —
+  // so they read `t` through this ref instead of closing over the first
+  // render's copy.
+  const tRef = useRef(t);
+  tRef.current = t;
 
   /** This export has codes the user has not scanned yet. */
   const moreCodes =
@@ -81,9 +96,24 @@ export default function App() {
       // Same rule as the popup: a stored choice wins, otherwise the browser's
       // own language decides. This page opens in its own tab, where landing in
       // English is even more jarring than in a 360px popup.
-      const language: Language = result.language || detectLanguage();
+      const language: Language = resolveLanguage(result.language);
       if (language !== 'en') loadLanguage(language).then(() => setLanguage(language));
     });
+  }, []);
+
+  // The popup's language and theme switches can be used while this tab is open,
+  // and someone who switches language to read an error here expects it to
+  // change.
+  useEffect(() => {
+    if (!chrome.storage?.onChanged?.addListener) return;
+    const onChanged = (changes: Record<string, { newValue?: unknown }>, areaName: string) => {
+      const patch = settingsFromChanges(changes, areaName);
+      if (patch.darkMode !== undefined) setDarkMode(patch.darkMode);
+      const next = patch.language;
+      if (next) loadLanguage(next).then(() => setLanguage(next));
+    };
+    chrome.storage.onChanged.addListener(onChanged);
+    return () => chrome.storage.onChanged.removeListener(onChanged);
   }, []);
 
   // The scanner is its own page, so it needs the same treatment as the popup.
@@ -110,11 +140,11 @@ export default function App() {
         stopCamera();
         setStatus({
           kind: 'error',
-          title: t('scan.refusedTitle'),
-          message:
+          title: 'scan.refusedTitle',
+          body:
             error instanceof UnsupportedOTPTypeError
-              ? t('addAccount.errorHotp')
-              : t('addAccount.errorInvalidQR'),
+              ? 'addAccount.errorHotp'
+              : 'addAccount.errorInvalidQR',
         });
         return;
       }
@@ -162,7 +192,7 @@ export default function App() {
           return;
         }
         console.error('Failed to add scanned accounts:', error);
-        setStatus({ kind: 'error', title: t('scan.saveFailedTitle'), message: saveErrorMessage(error, t) });
+        setStatus({ kind: 'error', title: 'scan.saveFailedTitle', body: saveErrorKey(error) });
       }
     },
     [stopCamera]
@@ -198,7 +228,7 @@ export default function App() {
         decode = (await import('jsqr')).default;
       } catch (error) {
         console.error('Could not load the QR decoder:', error);
-        setStatus({ kind: 'error', message: t('scan.errorBody') });
+        setStatus({ kind: 'error', body: 'scan.errorBody' });
         return;
       }
 
@@ -226,7 +256,7 @@ export default function App() {
           setStatus({ kind: 'noCamera' });
         } else {
           console.error('Could not start the camera:', error);
-          setStatus({ kind: 'error', message: t('scan.errorBody') });
+          setStatus({ kind: 'error', body: 'scan.errorBody' });
         }
         return;
       }
@@ -248,9 +278,9 @@ export default function App() {
         .then(devices => {
           const inputs = devices.filter(device => device.kind === 'videoinput');
           setCameras(
-            inputs.map((device, index) => ({
+            inputs.map(device => ({
               id: device.deviceId,
-              label: device.label || `Camera ${index + 1}`,
+              label: device.label,
             }))
           );
         })
@@ -386,7 +416,7 @@ export default function App() {
       try {
         const text = await decodeQrFromImage(file);
         if (!text) {
-          toast('error', t('addAccount.errorNoQr'));
+          toast('error', tRef.current('addAccount.errorNoQr'));
           return;
         }
         // Freeze the camera loop while the add is in flight, exactly like a
@@ -397,20 +427,19 @@ export default function App() {
           // handleDecoded read it, found no otpauth in it, and reset the guard
           // expecting a live camera loop — which its early return in the
           // camera path keeps running, but this path froze. Restart it.
-          toast('error', t('addAccount.errorInvalidQR'));
+          toast('error', tRef.current('addAccount.errorInvalidQR'));
           start();
         }
       } catch (error) {
         console.error('Could not read the uploaded image:', error);
-        toast('error', t('addAccount.errorNoQr'));
+        toast('error', tRef.current('addAccount.errorNoQr'));
       } finally {
         decodingImageRef.current = false;
         setDecodingImage(false);
       }
     },
-    // `t` is deliberately not a dependency, same as in handleDecoded — it is
-    // rebuilt every render and would drag the document listeners with it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // `t` is read through tRef rather than listed: it is rebuilt every render
+    // and would drag the document listeners with it.
     [handleDecoded, start]
   );
 
@@ -461,7 +490,7 @@ export default function App() {
       case 'locked':
         return { icon: Lock, tone: 'yellow', title: t('scan.lockedTitle'), body: t('scan.lockedBody') };
       case 'error':
-        return { icon: AlertTriangle, tone: 'red', title: status.title ?? t('scan.errorTitle'), body: status.message };
+        return { icon: AlertTriangle, tone: 'red', title: t(status.title ?? 'scan.errorTitle'), body: t(status.body) };
       default:
         return null;
     }
@@ -631,9 +660,9 @@ export default function App() {
                   aria-label={t('scan.selectCamera')}
                   className="mt-3 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-[#4285F4] dark:border-dark-500 dark:bg-dark-700 dark:text-gray-200"
                 >
-                  {cameras.map(camera => (
+                  {cameras.map((camera, index) => (
                     <option key={camera.id} value={camera.id}>
-                      {camera.label}
+                      {camera.label || t('scan.cameraN', index + 1)}
                     </option>
                   ))}
                 </select>

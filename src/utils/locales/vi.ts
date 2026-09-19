@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} tài khoản trong một bản sao tự động",
   "restore.offerBody": "Được tạo {0}, trên thiết bị này. Có thể lấy lại.",
   "restore.offerAction": "Khôi phục {0} tài khoản",
+  "edit.secretHint": "Khóa này không thể tạo mã. Hãy dán khóa đúng từ trang thiết lập 2FA của dịch vụ.",
+  "edit.secretDuplicate": "Một tài khoản khác đã dùng khóa này.",
+  "accounts.notFound": "Tài khoản này không còn nữa — nó đã bị xóa ở một cửa sổ khác.",
+  "accounts.reorderFailed": "Không thể lưu thứ tự mới. Vui lòng thử lại.",
+  "settings.syncFailed": "Đồng bộ đang bật, nhưng không thể tải tài khoản của bạn lên Tài khoản Google.",
+  "import.imageUnreadable": "Không thể mở hình ảnh này. Hãy thử ảnh chụp màn hình PNG hoặc JPG.",
+  "crash.title": "Đã xảy ra lỗi",
+  "crash.body": "Tài khoản của bạn vẫn được lưu trên thiết bị này. Tải lại để thử lần nữa, hoặc lưu một bản sao vào tệp trước.",
+  "crash.reload": "Tải lại",
+  "crash.saveCopy": "Lưu một bản sao tài khoản của tôi",
+  "scan.cameraN": "Camera {0}",
+  "recovery.saveCopyFailed": "Không thể lưu bản sao. Vui lòng thử lại.",
 };
 
 export default strings;

@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} account(s) in an automatic copy",
   "restore.offerBody": "Taken {0}, on this device. They can be put back.",
   "restore.offerAction": "Restore {0} account(s)",
+  "edit.secretHint": "This key can't produce codes. Paste the correct one from the service's 2FA setup page.",
+  "edit.secretDuplicate": "Another account already uses this key.",
+  "accounts.notFound": "This account no longer exists — it was removed in another window.",
+  "accounts.reorderFailed": "The new order could not be saved. Please try again.",
+  "settings.syncFailed": "Sync is on, but your accounts could not be uploaded to your Google account.",
+  "import.imageUnreadable": "That image could not be opened. Try a PNG or JPG screenshot.",
+  "crash.title": "Something went wrong",
+  "crash.body": "Your accounts are still saved on this device. Reload to try again, or save a copy of them to a file first.",
+  "crash.reload": "Reload",
+  "crash.saveCopy": "Save a copy of my accounts",
+  "scan.cameraN": "Camera {0}",
+  "recovery.saveCopyFailed": "The copy could not be saved. Please try again.",
 };
 
 export default strings;

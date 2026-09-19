@@ -35,6 +35,7 @@ const suites = [
   ['sharing codes by link', () => import('./share.test')],
   ['where the app opens', () => import('./open-mode.test')],
   ['language detection', () => import('./i18n.test')],
+  ['what the popup puts on screen', () => import('./ui-state.test')],
   ['the store listing against the manifest', () => import('./listing.test')],
 ] as const;
 

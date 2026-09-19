@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "มี {0} บัญชีในสำเนาอัตโนมัติ",
   "restore.offerBody": "สร้างเมื่อ{0} บนอุปกรณ์นี้ กู้คืนกลับมาได้",
   "restore.offerAction": "กู้คืน {0} บัญชี",
+  "edit.secretHint": "คีย์นี้สร้างรหัสไม่ได้ วางคีย์ที่ถูกต้องจากหน้าตั้งค่า 2FA ของบริการนั้น",
+  "edit.secretDuplicate": "มีบัญชีอื่นใช้คีย์นี้อยู่แล้ว",
+  "accounts.notFound": "บัญชีนี้ไม่มีอยู่แล้ว — ถูกลบในหน้าต่างอื่น",
+  "accounts.reorderFailed": "ไม่สามารถบันทึกลำดับใหม่ได้ โปรดลองอีกครั้ง",
+  "settings.syncFailed": "เปิดการซิงค์อยู่ แต่ไม่สามารถอัปโหลดบัญชีของคุณไปยังบัญชี Google ได้",
+  "import.imageUnreadable": "ไม่สามารถเปิดรูปภาพนี้ได้ ลองใช้ภาพหน้าจอแบบ PNG หรือ JPG",
+  "crash.title": "เกิดข้อผิดพลาดบางอย่าง",
+  "crash.body": "บัญชีของคุณยังคงบันทึกอยู่ในอุปกรณ์นี้ โหลดใหม่เพื่อลองอีกครั้ง หรือบันทึกสำเนาลงไฟล์ก่อน",
+  "crash.reload": "โหลดใหม่",
+  "crash.saveCopy": "บันทึกสำเนาบัญชีของฉัน",
+  "scan.cameraN": "กล้อง {0}",
+  "recovery.saveCopyFailed": "ไม่สามารถบันทึกสำเนาได้ โปรดลองอีกครั้ง",
 };
 
 export default strings;

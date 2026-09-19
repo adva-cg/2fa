@@ -27,7 +27,9 @@ import { RestoreBackups, RestoreOffer } from '@/components/RestoreBackups';
 import { GroupFilter } from '@/components/GroupFilter';
 import { SupportFooter } from '@/components/SupportFooter';
 import { getTimeSyncNotice, dismissTimeNotice, getClockStatus, recheckClock, type ClockStatus } from '@/utils/time-sync';
-import { applyDocumentLanguage, createT, detectLanguage, loadLanguage, type Language } from '@/utils/i18n';
+import { applyDocumentLanguage, createT, loadLanguage, resolveLanguage, type Language } from '@/utils/i18n';
+import { settingsFromChanges } from '@/utils/settings-watch';
+import { chooseListView, matchesSearch } from '@/utils/list-view';
 import { addMultipleAccounts, getAccounts } from '@/utils/storage';
 import { listBackupSummaries, type BackupSummary } from '@/utils/auto-backup';
 import { shouldShowBackupReminder, markBackupDone } from '@/utils/backup-reminder';
@@ -168,6 +170,8 @@ function App() {
   const [showProductHunt, setShowProductHunt] = useState(false);
   const [showReviewPrompt, setShowReviewPrompt] = useState(false);
   const draggedIdRef = useRef<string | null>(null);
+  /** The last account reported gone, so the save path and the effect below do not both say it. */
+  const goneAccountRef = useRef<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -178,7 +182,7 @@ function App() {
       // Without one, follow the browser: twenty translated interfaces were
       // reachable only from a dropdown, so every install began in English no
       // matter who installed it.
-      const language: Language = result.language || detectLanguage();
+      const language: Language = resolveLanguage(result.language);
       if (language !== 'en') {
         // Switch only once the chunk is in memory, otherwise the first paint
         // would be English and then visibly flip.
@@ -233,11 +237,77 @@ function App() {
     getOpenMode().then(setOpenModeState);
   }, []);
 
+  // Every setting on this screen, followed as it changes in another open copy
+  // of the app — see settings-watch.ts for what went wrong without it.
+  useEffect(() => {
+    if (!chrome.storage?.onChanged?.addListener) return;
+    const onChanged = (changes: Record<string, { newValue?: unknown }>, areaName: string) => {
+      const patch = settingsFromChanges(changes, areaName);
+      const nextLanguage = patch.language;
+      if (nextLanguage) loadLanguage(nextLanguage).then(() => setLanguage(nextLanguage));
+      if (patch.darkMode !== undefined) setDarkMode(patch.darkMode);
+      if (patch.viewMode) setViewMode(patch.viewMode);
+      if (patch.showAvatars !== undefined) setShowAvatars(patch.showAvatars);
+      if (patch.popupSize) {
+        setPopupSize(patch.popupSize);
+        rememberPopupSize(patch.popupSize);
+      }
+      if (patch.openMode) setOpenModeState(patch.openMode);
+      if (patch.syncEnabled !== undefined) setSyncOn(patch.syncEnabled);
+      if (patch.syncOverflow !== undefined) setSyncOverflow(patch.syncOverflow);
+      if (patch.quickFill !== undefined) setQuickFillOn(patch.quickFill);
+      if (patch.suggestions !== undefined) {
+        setSuggestionsOn(patch.suggestions);
+        if (!patch.suggestions) setSuggestedAccountId(null);
+      }
+    };
+    chrome.storage.onChanged.addListener(onChanged);
+    return () => chrome.storage.onChanged.removeListener(onChanged);
+  }, []);
+
+  /**
+   * Turning sync on is an upload, and an upload can fail.
+   *
+   * This used to say "Saved" unconditionally. setSyncEnabled swallows a failed
+   * push, the overflow flag that records one was read only when the popup
+   * opened, and a rejected vault-metadata write escaped as an unhandled
+   * rejection — so the switch showed on, the toast said saved, and nothing had
+   * reached Google. The switch and the warning under it are now re-read from
+   * the store afterwards, and the toast says what actually happened.
+   *
+   * `result === false` is for a setSyncEnabled that reports a failed push
+   * itself; today's resolves to nothing and leaves the overflow flag as the
+   * only record, which is read here either way.
+   */
   const handleSyncToggle = async () => {
     const next = !syncOn;
     setSyncOn(next);
-    await setSyncEnabled(next);
-    toast('success', t('vault.settings.saved'));
+    let failed = false;
+    try {
+      const result: unknown = await setSyncEnabled(next);
+      failed = result === false;
+    } catch (error) {
+      console.error('Could not change the sync setting:', error);
+      failed = true;
+    }
+
+    let overflowed = false;
+    try {
+      const [on, overflow] = await Promise.all([isSyncEnabled(), hasSyncOverflowed()]);
+      setSyncOn(on);
+      setSyncOverflow(overflow);
+      overflowed = on && overflow;
+    } catch {
+      // The switch keeps the state it was just given; the toast still reports.
+    }
+
+    if (next && (failed || overflowed)) {
+      toast('error', t('settings.syncFailed'));
+    } else if (failed) {
+      toast('error', t('accounts.updateFailed'));
+    } else {
+      toast('success', t('vault.settings.saved'));
+    }
   };
 
   // The service worker watches this key and adds or removes the menu item
@@ -395,12 +465,7 @@ function App() {
     }
 
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      list = list.filter(
-        (acc) =>
-          acc.name.toLowerCase().includes(query) ||
-          acc.issuer.toLowerCase().includes(query)
-      );
+      list = list.filter(acc => matchesSearch(acc, searchQuery));
     }
 
     return list;
@@ -409,6 +474,14 @@ function App() {
   // A filter is a claim about the whole list, so the pinned suggestion — which
   // ignores it — is dropped while one is active, the same as during a search.
   const isFiltered = Boolean(searchQuery) || activeGroup !== null;
+
+  const listView = chooseListView({
+    loading,
+    total: accounts.length,
+    shown: filteredAccounts.length,
+    failed: Boolean(error),
+    held: heldCount,
+  });
 
   // Pinning a duplicate on top only pays off when the list is long enough to
   // scroll; with few accounts the badge highlight in the list is enough.
@@ -528,13 +601,22 @@ function App() {
   };
 
   const handleEditAccount = async (id: string, updates: Partial<Account>) => {
+    let found: boolean | void;
     try {
-      await updateAccount(id, updates);
+      found = await updateAccount(id, updates);
     } catch (error) {
       console.error('Could not save the changes:', error);
       toast('error', t('accounts.updateFailed'));
       // Rethrown so the edit form stays open with what was typed.
       throw error;
+    }
+    // Deleted in another window while this one had it open. "Changes saved"
+    // over a row that is not in the list sends the user looking for it; the
+    // modal closes itself once onSave resolves.
+    if (found === false) {
+      if (goneAccountRef.current !== id) toast('info', t('accounts.notFound'));
+      goneAccountRef.current = id;
+      return;
     }
     // Only when the group was actually touched: an edit that leaves it alone
     // cannot have moved the account out of the current filter.
@@ -546,22 +628,35 @@ function App() {
     draggedIdRef.current = id;
   };
 
+  /** Whichever way a drag ends — a drop, a drop outside the list, Esc. */
+  const handleDragEnd = () => {
+    draggedIdRef.current = null;
+    setDragOverId(null);
+  };
+
   const handleDrop = async (_e: React.DragEvent, targetId: string) => {
     const draggedId = draggedIdRef.current;
-    if (!draggedId || draggedId === targetId) {
-      setDragOverId(null);
-      return;
-    }
+    // Cleared before the write rather than after it: the write can take a
+    // moment, and it can fail — either way the marker must not outlive the drop.
+    handleDragEnd();
+    if (!draggedId || draggedId === targetId) return;
 
     const newOrder = [...accounts.map(a => a.id)];
     const fromIndex = newOrder.indexOf(draggedId);
     const toIndex = newOrder.indexOf(targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
     newOrder.splice(fromIndex, 1);
     newOrder.splice(toIndex, 0, draggedId);
 
-    await reorderAccounts(newOrder);
-    draggedIdRef.current = null;
-    setDragOverId(null);
+    try {
+      await reorderAccounts(newOrder);
+    } catch (error) {
+      // Unreported, a refused write left the rows where the user dropped them
+      // until the next reload put them back — an order that quietly undid itself.
+      console.error('Could not save the new order:', error);
+      toast('error', t('accounts.reorderFailed'));
+      reload();
+    }
   };
 
   const handleImportClick = () => {
@@ -625,56 +720,66 @@ function App() {
   };
 
   const handleQRImport = async (file: File) => {
+    let text: string | null;
     try {
-      const result = await decodeQrFromImage(file);
-      if (!result) {
-        throw new Error(t('addAccount.errorNoQr'));
-      }
+      text = await decodeQrFromImage(file);
+    } catch (error) {
+      // createImageBitmap rejects a file it cannot open — a HEIC photo, a
+      // truncated download — with a DOMException written for the console, and
+      // that sentence used to be the toast: "The source image could not be
+      // decoded.", in English, whatever language the popup was in.
+      console.error('Could not open the image:', error);
+      toast('error', t('import.imageUnreadable'));
+      return;
+    }
+    if (!text) {
+      toast('error', t('addAccount.errorNoQr'));
+      return;
+    }
 
-      const parsed = parseQRCode(result);
-      if (parsed) {
-        const accountsToAdd: Account[] = parsed.accounts.map((accountData, index) => ({
-          id: Date.now().toString() + index + Math.random().toString(36).substring(7),
-          name: accountData.name,
-          issuer: accountData.issuer,
-          secret: cleanSecret(accountData.secret),
-          algorithm: accountData.algorithm,
-          digits: accountData.digits,
-          period: accountData.period,
-          createdAt: Date.now() + index,
-          color: generateRandomColor(),
-        }));
-
-        let result;
-        try {
-          result = { ...(await addMultipleAccounts(accountsToAdd)), unsupported: parsed.skipped ?? 0 };
-        } catch (error) {
-          console.error('Could not save the scanned accounts:', error);
-          toast('error', saveErrorMessage(error, t));
-          return;
-        }
-        reload();
-        // A split Google Authenticator export is the common case for anyone with
-        // more than ten accounts, and stopping after the first code is the
-        // default mistake. Say which code this was.
-        const more = parsed.batch && parsed.batch.index < parsed.batch.total
-          ? ` ${t('import.qrBatch', parsed.batch.index, parsed.batch.total)}`
-          : '';
-        toast(result.added > 0 ? 'success' : 'info', describeImport(result, language) + more);
-      } else {
-        throw new Error(t('addAccount.errorInvalidQR'));
-      }
+    let parsed;
+    try {
+      parsed = parseQRCode(text);
     } catch (error) {
       console.error('QR import failed:', error);
-      if (error instanceof UnsupportedOTPTypeError) {
-        // Understood, and refused on purpose — saying "invalid QR" here would
-        // send the user off to re-export a code that can never work.
-        toast('error', t('addAccount.errorHotp'));
-        return;
-      }
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      toast('error', t('import.qrFailed', errorMessage));
+      // Understood, and refused on purpose — saying "invalid QR" here would
+      // send the user off to re-export a code that can never work.
+      toast('error', t(error instanceof UnsupportedOTPTypeError ? 'addAccount.errorHotp' : 'addAccount.errorInvalidQR'));
+      return;
     }
+    if (!parsed) {
+      toast('error', t('addAccount.errorInvalidQR'));
+      return;
+    }
+
+    const accountsToAdd: Account[] = parsed.accounts.map((accountData, index) => ({
+      id: Date.now().toString() + index + Math.random().toString(36).substring(7),
+      name: accountData.name,
+      issuer: accountData.issuer,
+      secret: cleanSecret(accountData.secret),
+      algorithm: accountData.algorithm,
+      digits: accountData.digits,
+      period: accountData.period,
+      createdAt: Date.now() + index,
+      color: generateRandomColor(),
+    }));
+
+    let result;
+    try {
+      result = { ...(await addMultipleAccounts(accountsToAdd)), unsupported: parsed.skipped ?? 0 };
+    } catch (error) {
+      console.error('Could not save the scanned accounts:', error);
+      toast('error', saveErrorMessage(error, t));
+      return;
+    }
+    reload();
+    // A split Google Authenticator export is the common case for anyone with
+    // more than ten accounts, and stopping after the first code is the
+    // default mistake. Say which code this was.
+    const more = parsed.batch && parsed.batch.index < parsed.batch.total
+      ? ` ${t('import.qrBatch', parsed.batch.index, parsed.batch.total)}`
+      : '';
+    toast(result.added > 0 ? 'success' : 'info', describeImport(result, language) + more);
   };
 
   // Anything that covers the whole app. Two things depend on knowing: the
@@ -696,6 +801,30 @@ function App() {
       setSharingAccount(null);
     }
   }, [vault.enabled, vault.locked]);
+
+  // The same two views, when their account is deleted in another window. Left
+  // open, Edit saved into nothing and said "Changes saved", and Share kept
+  // handing out codes for an account the user had just removed.
+  //
+  // Only against a list that was really read: while loading, behind a lock, or
+  // after a failed read the list is empty for reasons that say nothing about
+  // this account.
+  useEffect(() => {
+    if (loading || error || vaultHidingAccounts) return;
+    const gone = (account: Account | null) =>
+      account !== null && !accounts.some(existing => existing.id === account.id);
+    const goneEditing = gone(editingAccount);
+    const goneSharing = gone(sharingAccount);
+    if (!goneEditing && !goneSharing) return;
+
+    const id = (goneEditing ? editingAccount : sharingAccount)!.id;
+    if (goneEditing) setEditingAccount(null);
+    if (goneSharing) setSharingAccount(null);
+    if (goneAccountRef.current !== id) toast('info', t('accounts.notFound'));
+    goneAccountRef.current = id;
+    // `t` is rebuilt every render; the language changing is no reason to re-check.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accounts, loading, error, vaultHidingAccounts, editingAccount, sharingAccount]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -732,9 +861,32 @@ function App() {
   // The Product Hunt banner — see product-hunt.ts for when and why. Same
   // readiness as the review ask above: while loading, and behind a locked
   // vault, the list is empty and says nothing about the person holding it.
+  //
+  // Asked again every minute and whenever the page comes back into view, not
+  // only when the account count changes: a side panel or a floating window
+  // stays open for days, and one opened during the launch kept announcing it
+  // long after the day was over — and after it was dismissed in another window.
   useEffect(() => {
     if (loading || openCount === null || accounts.length === 0) return;
-    productHuntDue().then(setShowProductHunt);
+    let cancelled = false;
+    const check = () => {
+      productHuntDue()
+        .then(due => {
+          if (!cancelled) setShowProductHunt(due);
+        })
+        .catch(() => {});
+    };
+    check();
+    const timer = window.setInterval(check, 60_000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') check();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [loading, openCount, accounts.length]);
 
   const handleSnoozeReview = async () => {
@@ -1288,16 +1440,15 @@ function App() {
       {/* Accounts List */}
       {!showSettings && (
       <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-dark-900">
-        {loading ? (
+        {listView === 'loading' ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 dark:border-dark-600 border-t-gray-900 dark:border-t-gray-300"></div>
           </div>
-        ) : filteredAccounts.length === 0 ? (
-          // `accounts.length > 0` has to win: with no accounts at all the answer
-          // is the setup guide, whatever the filter says. Otherwise someone who
-          // deletes their last account while filtered gets "no results" and no
-          // way to add anything.
-          error || heldCount > 0 ? (
+        ) : listView !== 'list' ? (
+          // The order lives in chooseListView: accounts on screen outrank the
+          // explanations of why there might be none, and with no accounts at
+          // all the setup guide wins whatever the filter says.
+          listView === 'unavailable' ? (
             // Not a new user: the records are on disk, they just cannot be read
             // right now. Showing the setup guide here was the app saying "you
             // have no accounts" to someone whose accounts are intact.
@@ -1318,7 +1469,7 @@ function App() {
                 )
               }
             />
-          ) : isFiltered && accounts.length > 0 ? (
+          ) : listView === 'noResults' ? (
             <div className="flex flex-col items-center justify-center h-[340px] text-center p-6">
               <Logo size={48} className="mb-3 opacity-30" />
               <h2 className="text-base font-medium text-gray-900 dark:text-gray-100 mb-1">
@@ -1414,6 +1565,8 @@ function App() {
                 onDragStart={handleDragStart}
                 onDragOver={() => setDragOverId(account.id)}
                 onDrop={handleDrop}
+                onDragLeave={id => setDragOverId(current => (current === id ? null : current))}
+                onDragEnd={handleDragEnd}
                 isDragOver={dragOverId === account.id}
                 currentDomain={currentDomain}
                 // Matches the condition that decides the pinned card above, so
@@ -1481,6 +1634,7 @@ function App() {
           onSave={handleEditAccount}
           language={language}
           groups={groups.map(group => group.name)}
+          accounts={accounts}
         />
       )}
 

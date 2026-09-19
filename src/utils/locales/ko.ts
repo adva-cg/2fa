@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "자동 백업에 계정 {0}개",
   "restore.offerBody": "이 기기에서 {0}에 만들어졌습니다. 되돌릴 수 있습니다.",
   "restore.offerAction": "계정 {0}개 복원",
+  "edit.secretHint": "이 키로는 코드를 만들 수 없습니다. 서비스의 2FA 설정 페이지에서 올바른 키를 붙여 넣으세요.",
+  "edit.secretDuplicate": "다른 계정이 이미 이 키를 사용하고 있습니다.",
+  "accounts.notFound": "이 계정은 더 이상 존재하지 않습니다. 다른 창에서 삭제되었습니다.",
+  "accounts.reorderFailed": "새 순서를 저장할 수 없습니다. 다시 시도해 주세요.",
+  "settings.syncFailed": "동기화가 켜져 있지만 계정을 Google 계정에 업로드하지 못했습니다.",
+  "import.imageUnreadable": "이 이미지를 열 수 없습니다. PNG 또는 JPG 스크린샷으로 시도해 보세요.",
+  "crash.title": "문제가 발생했습니다",
+  "crash.body": "계정은 이 기기에 그대로 저장되어 있습니다. 새로고침하여 다시 시도하거나, 먼저 파일로 사본을 저장하세요.",
+  "crash.reload": "새로고침",
+  "crash.saveCopy": "내 계정 사본 저장",
+  "scan.cameraN": "카메라 {0}",
+  "recovery.saveCopyFailed": "사본을 저장할 수 없습니다. 다시 시도해 주세요.",
 };
 
 export default strings;

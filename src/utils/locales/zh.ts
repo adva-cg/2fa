@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "自动备份中有 {0} 个账户",
   "restore.offerBody": "{0}在本设备上创建，可以恢复回来。",
   "restore.offerAction": "恢复 {0} 个账户",
+  "edit.secretHint": "此密钥无法生成验证码。请从该服务的两步验证设置页面粘贴正确的密钥。",
+  "edit.secretDuplicate": "另一个账户已在使用此密钥。",
+  "accounts.notFound": "此账户已不存在——它已在另一个窗口中被删除。",
+  "accounts.reorderFailed": "无法保存新的排序，请重试。",
+  "settings.syncFailed": "同步已开启，但无法将你的账户上传到 Google 账号。",
+  "import.imageUnreadable": "无法打开该图片。请尝试 PNG 或 JPG 格式的截图。",
+  "crash.title": "出了点问题",
+  "crash.body": "你的账户仍保存在此设备上。请重新加载再试一次，或先将其副本保存到文件。",
+  "crash.reload": "重新加载",
+  "crash.saveCopy": "保存我的账户副本",
+  "scan.cameraN": "摄像头 {0}",
+  "recovery.saveCopyFailed": "无法保存副本，请重试。",
 };
 
 export default strings;

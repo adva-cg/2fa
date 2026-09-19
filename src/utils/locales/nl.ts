@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} account(s) in een automatische kopie",
   "restore.offerBody": "Gemaakt {0}, op dit apparaat. Ze kunnen terug.",
   "restore.offerAction": "{0} account(s) herstellen",
+  "edit.secretHint": "Met deze sleutel kunnen geen codes worden gemaakt. Plak de juiste van de 2FA-instellingenpagina van de dienst.",
+  "edit.secretDuplicate": "Een ander account gebruikt deze sleutel al.",
+  "accounts.notFound": "Dit account bestaat niet meer — het is in een ander venster verwijderd.",
+  "accounts.reorderFailed": "De nieuwe volgorde kon niet worden opgeslagen. Probeer het opnieuw.",
+  "settings.syncFailed": "Synchronisatie staat aan, maar je accounts konden niet naar je Google-account worden geüpload.",
+  "import.imageUnreadable": "Deze afbeelding kon niet worden geopend. Probeer een screenshot als PNG of JPG.",
+  "crash.title": "Er is iets misgegaan",
+  "crash.body": "Je accounts staan nog steeds op dit apparaat. Laad opnieuw om het nog eens te proberen, of sla eerst een kopie op in een bestand.",
+  "crash.reload": "Opnieuw laden",
+  "crash.saveCopy": "Een kopie van mijn accounts opslaan",
+  "scan.cameraN": "Camera {0}",
+  "recovery.saveCopyFailed": "De kopie kon niet worden opgeslagen. Probeer het opnieuw.",
 };
 
 export default strings;

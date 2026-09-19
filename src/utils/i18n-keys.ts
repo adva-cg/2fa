@@ -431,6 +431,19 @@ type VaultTranslationKeys = {
   'update.feature.shareCodes': string;
   'update.feature.openIn': string;
   'update.feature.restoreBackups': string;
+  'edit.secretHint': string;
+  'edit.secretDuplicate': string;
+  'accounts.notFound': string;
+  'accounts.reorderFailed': string;
+  'settings.syncFailed': string;
+  'import.imageUnreadable': string;
+  'crash.title': string;
+  'crash.body': string;
+  'crash.reload': string;
+  'crash.saveCopy': string;
+  /** "Camera {0}" — a camera the browser reports without a name */
+  'scan.cameraN': string;
+  'recovery.saveCopyFailed': string;
 };
 
 /** A complete set of strings for one language. */

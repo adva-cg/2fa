@@ -363,6 +363,18 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "Otomatik kopyada {0} hesap",
   "restore.offerBody": "Bu cihazda {0} alındı. Geri getirilebilirler.",
   "restore.offerAction": "{0} hesabı geri yükle",
+  "edit.secretHint": "Bu anahtar kod üretemiyor. Doğrusunu hizmetin 2FA kurulum sayfasından yapıştırın.",
+  "edit.secretDuplicate": "Bu anahtarı zaten başka bir hesap kullanıyor.",
+  "accounts.notFound": "Bu hesap artık yok — başka bir pencerede kaldırıldı.",
+  "accounts.reorderFailed": "Yeni sıralama kaydedilemedi. Lütfen tekrar deneyin.",
+  "settings.syncFailed": "Eşitleme açık, ancak hesaplarınız Google hesabınıza yüklenemedi.",
+  "import.imageUnreadable": "Bu görsel açılamadı. PNG veya JPG bir ekran görüntüsü deneyin.",
+  "crash.title": "Bir şeyler ters gitti",
+  "crash.body": "Hesaplarınız bu cihazda hâlâ kayıtlı. Yeniden denemek için sayfayı yenileyin ya da önce bir kopyasını dosyaya kaydedin.",
+  "crash.reload": "Yenile",
+  "crash.saveCopy": "Hesaplarımın bir kopyasını kaydet",
+  "scan.cameraN": "Kamera {0}",
+  "recovery.saveCopyFailed": "Kopya kaydedilemedi. Lütfen tekrar deneyin.",
 };
 
 export default strings;
