@@ -12,6 +12,7 @@ import { getAccounts } from '@/utils/storage';
 import { VaultLockedError } from '@/utils/vault';
 import { getFillCandidate, hostnameOf, recordAccountUsage } from '@/utils/suggestions';
 import { loadTimeOffset, tryGenerateTOTP } from '@/utils/totp';
+import { checkTimeSync } from '@/utils/time-sync';
 import { isQuickFillEnabled, notePickPrompt } from '@/utils/quick-fill';
 import { getOpenMode } from '@/utils/open-mode';
 import { openAppFor } from './open-mode';
@@ -133,7 +134,15 @@ export async function runQuickFill(invocation: Invocation): Promise<void> {
     return;
   }
 
+  // The stored correction alone is not enough. Quick fill never opened the
+  // popup, so nothing here ever measured the clock: a correction taken before
+  // the OS fixed it was filled into sign-in forms, as a confidently wrong code,
+  // for as long as the record lived. checkTimeSync answers from the cache while
+  // a measurement is recent — the common case, and free — and otherwise
+  // measures, costing at most its fetch timeout; a measurement that fails
+  // leaves the local clock in charge rather than an unvouched-for correction.
   await loadTimeOffset();
+  await checkTimeSync().catch(() => {});
   let totp = tryGenerateTOTP(account);
   if (totp && totp.remaining <= MIN_REMAINING_SEC) {
     await new Promise<void>(resolve => setTimeout(resolve, totp!.remaining * 1000 + 250));
