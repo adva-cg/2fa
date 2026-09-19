@@ -160,7 +160,11 @@ export function isUsableSecret(secret: unknown): boolean {
   // secret still produces a plausible code from one byte of key. Anything that
   // short is already broken — the point here is only that a record which cannot
   // carry a key at all fails visibly instead of generating digits.
-  return cleaned.length >= 2 && BASE32.test(cleaned);
+  //
+  // Measured without the padding. `A=======` is eight characters long and
+  // carries no key at all; counting the `=` let it through to exactly the
+  // empty-key HMAC this floor exists to stop.
+  return cleaned.replace(/=+$/, '').length >= 2 && BASE32.test(cleaned);
 }
 
 export function validateSecret(secret: string): boolean {

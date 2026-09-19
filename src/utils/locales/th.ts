@@ -363,6 +363,16 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "มี {0} บัญชีในสำเนาอัตโนมัติ",
   "restore.offerBody": "สร้างเมื่อ{0} บนอุปกรณ์นี้ กู้คืนกลับมาได้",
   "restore.offerAction": "กู้คืน {0} บัญชี",
+  "import.fileAdded": "เพิ่ม {0} บัญชีแล้ว",
+  "import.fileAlreadyHere": "{0} บัญชีมีอยู่ในรายการแล้ว",
+  "import.fileEmpty": "ไฟล์นี้ไม่มีบัญชี",
+  "import.fileUnreadable": "อ่าน {0} รายการไม่ได้ จึงข้ามไป",
+  "import.fileUnsupported": "{0} รายการใช้ประเภทรหัสที่แอปนี้ไม่รองรับ (แบบนับรอบหรือ Steam) จึงข้ามไป",
+  "import.unknownFormat": "เราอ่านรูปแบบไฟล์นี้ไม่ได้ ข้อมูลสำรองของบางแอป (เช่น Alibaba Cloud) ถูกเข้ารหัสและกู้คืนได้เฉพาะในแอปนั้น — ให้เพิ่มแต่ละบัญชีโดยสแกนคิวอาร์โค้ดแทน",
+  "import.nothingReadable": "อ่านบัญชีในไฟล์นี้ไม่ได้เลย — ไม่มีการเพิ่มสิ่งใด",
+  "import.onlyUnsupported": "ทุกบัญชีในไฟล์นี้ใช้ประเภทรหัสที่แอปนี้ไม่รองรับ (แบบนับรอบหรือ Steam) — ไม่มีการเพิ่มสิ่งใด",
+  "import.encryptedElsewhere": "ข้อมูลสำรองนี้จาก {0} ถูกเข้ารหัส ส่งออกใหม่โดยไม่ใช้รหัสผ่านหรือการเข้ารหัส แล้วนำเข้าไฟล์นั้น",
+  "import.imageUnreadable": "เปิดรูปภาพนี้ไม่ได้ ลองใช้ภาพหน้าจอคิวอาร์โค้ดแบบ PNG หรือ JPEG",
 };
 
 export default strings;

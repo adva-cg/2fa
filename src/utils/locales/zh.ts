@@ -363,6 +363,16 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "自动备份中有 {0} 个账户",
   "restore.offerBody": "{0}在本设备上创建，可以恢复回来。",
   "restore.offerAction": "恢复 {0} 个账户",
+  "import.fileAdded": "已添加 {0} 个账户。",
+  "import.fileAlreadyHere": "{0} 个已在你的列表中。",
+  "import.fileEmpty": "此文件中没有账户。",
+  "import.fileUnreadable": "{0} 个条目无法读取，已跳过。",
+  "import.fileUnsupported": "{0} 个使用了本应用不支持的验证码类型（基于计数器或 Steam），已跳过。",
+  "import.unknownFormat": "无法读取此文件格式。某些应用（如阿里云）的备份是加密的，只能在该应用内恢复——请改为逐个扫描账户的二维码来添加。",
+  "import.nothingReadable": "此文件中的账户都无法读取——未添加任何内容。",
+  "import.onlyUnsupported": "此文件中的所有账户都使用本应用不支持的验证码类型（基于计数器或 Steam）——未添加任何内容。",
+  "import.encryptedElsewhere": "这份来自 {0} 的备份已加密。请在不设密码、不加密的情况下重新导出，然后导入该文件。",
+  "import.imageUnreadable": "无法打开此图片。请尝试使用二维码的 PNG 或 JPEG 截图。",
 };
 
 export default strings;

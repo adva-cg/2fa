@@ -363,6 +363,16 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} account(s) in an automatic copy",
   "restore.offerBody": "Taken {0}, on this device. They can be put back.",
   "restore.offerAction": "Restore {0} account(s)",
+  "import.fileAdded": "{0} account(s) added.",
+  "import.fileAlreadyHere": "{0} were already in your list.",
+  "import.fileEmpty": "There are no accounts in this file.",
+  "import.fileUnreadable": "{0} entry(ies) could not be read and were skipped.",
+  "import.fileUnsupported": "{0} use a code type this app doesn't support (counter-based or Steam) and were skipped.",
+  "import.unknownFormat": "This file isn't a format we can read. Backups from some apps (e.g. Alibaba Cloud) are encrypted and can only be restored in that app — add each account by scanning its QR code instead.",
+  "import.nothingReadable": "None of the accounts in this file could be read — nothing was added.",
+  "import.onlyUnsupported": "Every account in this file uses a code type this app doesn't support (counter-based or Steam) — nothing was added.",
+  "import.encryptedElsewhere": "This backup from {0} is encrypted. Export it again without a password or encryption, then import that file.",
+  "import.imageUnreadable": "Couldn't open that image. Try a PNG or JPEG screenshot of the QR code.",
 };
 
 export default strings;

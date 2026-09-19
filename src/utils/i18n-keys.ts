@@ -431,6 +431,21 @@ type VaultTranslationKeys = {
   'update.feature.shareCodes': string;
   'update.feature.openIn': string;
   'update.feature.restoreBackups': string;
+  /** "{0} account(s) added." — a file or a pasted list, never a QR */
+  'import.fileAdded': string;
+  /** "{0}" accounts in the file the list already held */
+  'import.fileAlreadyHere': string;
+  'import.fileEmpty': string;
+  /** "{0}" entries with no usable secret */
+  'import.fileUnreadable': string;
+  /** "{0}" entries of a code type we refuse: HOTP, Steam */
+  'import.fileUnsupported': string;
+  'import.unknownFormat': string;
+  'import.nothingReadable': string;
+  'import.onlyUnsupported': string;
+  /** "{0}" — the app that encrypted the file: Aegis, 2FAS, Bitwarden */
+  'import.encryptedElsewhere': string;
+  'import.imageUnreadable': string;
 };
 
 /** A complete set of strings for one language. */

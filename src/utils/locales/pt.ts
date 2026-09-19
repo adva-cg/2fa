@@ -363,6 +363,16 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} conta(s) em uma cópia automática",
   "restore.offerBody": "Feita {0}, neste dispositivo. Dá para trazê-las de volta.",
   "restore.offerAction": "Restaurar {0} conta(s)",
+  "import.fileAdded": "{0} conta(s) adicionada(s).",
+  "import.fileAlreadyHere": "{0} já estavam na sua lista.",
+  "import.fileEmpty": "Este arquivo não contém contas.",
+  "import.fileUnreadable": "{0} entrada(s) não puderam ser lidas e foram ignoradas.",
+  "import.fileUnsupported": "{0} usam um tipo de código que este app não suporta (baseado em contador ou Steam) e foram ignoradas.",
+  "import.unknownFormat": "Não conseguimos ler o formato deste arquivo. Backups de alguns apps (ex.: Alibaba Cloud) são criptografados e só podem ser restaurados nesse app — adicione cada conta escaneando o código QR dela.",
+  "import.nothingReadable": "Nenhuma conta deste arquivo pôde ser lida — nada foi adicionado.",
+  "import.onlyUnsupported": "Todas as contas deste arquivo usam um tipo de código que este app não suporta (baseado em contador ou Steam) — nada foi adicionado.",
+  "import.encryptedElsewhere": "Este backup do {0} está criptografado. Exporte novamente sem senha nem criptografia e importe esse arquivo.",
+  "import.imageUnreadable": "Não foi possível abrir a imagem. Tente uma captura de tela PNG ou JPEG do código QR.",
 };
 
 export default strings;

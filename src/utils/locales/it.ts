@@ -363,6 +363,16 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} account in una copia automatica",
   "restore.offerBody": "Creata {0}, su questo dispositivo. Si possono recuperare.",
   "restore.offerAction": "Ripristina {0} account",
+  "import.fileAdded": "{0} account aggiunti.",
+  "import.fileAlreadyHere": "{0} erano già nel tuo elenco.",
+  "import.fileEmpty": "Questo file non contiene account.",
+  "import.fileUnreadable": "{0} voci non sono leggibili e sono state saltate.",
+  "import.fileUnsupported": "{0} usano un tipo di codice non supportato da questa app (basato su contatore o Steam) e sono stati saltati.",
+  "import.unknownFormat": "Non riusciamo a leggere il formato di questo file. I backup di alcune app (ad es. Alibaba Cloud) sono cifrati e si possono ripristinare solo in quell'app: aggiungi invece ogni account scansionando il suo codice QR.",
+  "import.nothingReadable": "Nessun account di questo file è leggibile: non è stato aggiunto nulla.",
+  "import.onlyUnsupported": "Tutti gli account di questo file usano un tipo di codice non supportato da questa app (basato su contatore o Steam): non è stato aggiunto nulla.",
+  "import.encryptedElsewhere": "Questo backup di {0} è cifrato. Esportalo di nuovo senza password né cifratura, poi importa quel file.",
+  "import.imageUnreadable": "Impossibile aprire l'immagine. Prova con uno screenshot PNG o JPEG del codice QR.",
 };
 
 export default strings;

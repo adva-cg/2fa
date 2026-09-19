@@ -363,6 +363,16 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "자동 백업에 계정 {0}개",
   "restore.offerBody": "이 기기에서 {0}에 만들어졌습니다. 되돌릴 수 있습니다.",
   "restore.offerAction": "계정 {0}개 복원",
+  "import.fileAdded": "계정 {0}개를 추가했습니다.",
+  "import.fileAlreadyHere": "{0}개는 이미 목록에 있습니다.",
+  "import.fileEmpty": "이 파일에는 계정이 없습니다.",
+  "import.fileUnreadable": "항목 {0}개를 읽을 수 없어 건너뛰었습니다.",
+  "import.fileUnsupported": "{0}개는 이 앱이 지원하지 않는 코드 유형(카운터 기반 또는 Steam)이라 건너뛰었습니다.",
+  "import.unknownFormat": "이 파일 형식은 읽을 수 없습니다. 일부 앱(예: Alibaba Cloud)의 백업은 암호화되어 있어 해당 앱에서만 복원할 수 있습니다. 대신 각 계정의 QR 코드를 스캔해 추가하세요.",
+  "import.nothingReadable": "이 파일의 계정을 하나도 읽을 수 없습니다. 아무것도 추가되지 않았습니다.",
+  "import.onlyUnsupported": "이 파일의 모든 계정이 이 앱이 지원하지 않는 코드 유형(카운터 기반 또는 Steam)입니다. 아무것도 추가되지 않았습니다.",
+  "import.encryptedElsewhere": "이 {0} 백업은 암호화되어 있습니다. 비밀번호나 암호화 없이 다시 내보낸 뒤 그 파일을 가져오세요.",
+  "import.imageUnreadable": "이미지를 열 수 없습니다. QR 코드의 PNG 또는 JPEG 스크린샷을 사용해 보세요.",
 };
 
 export default strings;

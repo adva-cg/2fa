@@ -363,6 +363,16 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} account(s) in een automatische kopie",
   "restore.offerBody": "Gemaakt {0}, op dit apparaat. Ze kunnen terug.",
   "restore.offerAction": "{0} account(s) herstellen",
+  "import.fileAdded": "{0} account(s) toegevoegd.",
+  "import.fileAlreadyHere": "{0} stonden al in je lijst.",
+  "import.fileEmpty": "Dit bestand bevat geen accounts.",
+  "import.fileUnreadable": "{0} item(s) konden niet worden gelezen en zijn overgeslagen.",
+  "import.fileUnsupported": "{0} gebruiken een codetype dat deze app niet ondersteunt (op teller gebaseerd of Steam) en zijn overgeslagen.",
+  "import.unknownFormat": "Dit bestandsformaat kunnen we niet lezen. Back-ups van sommige apps (bijv. Alibaba Cloud) zijn versleuteld en kunnen alleen in die app worden hersteld — voeg elk account in plaats daarvan toe door de QR-code te scannen.",
+  "import.nothingReadable": "Geen enkel account in dit bestand kon worden gelezen — er is niets toegevoegd.",
+  "import.onlyUnsupported": "Alle accounts in dit bestand gebruiken een codetype dat deze app niet ondersteunt (op teller gebaseerd of Steam) — er is niets toegevoegd.",
+  "import.encryptedElsewhere": "Deze back-up uit {0} is versleuteld. Exporteer opnieuw zonder wachtwoord of versleuteling en importeer dat bestand.",
+  "import.imageUnreadable": "Deze afbeelding kan niet worden geopend. Probeer een PNG- of JPEG-screenshot van de QR-code.",
 };
 
 export default strings;

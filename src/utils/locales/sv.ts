@@ -363,6 +363,16 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} konto(n) i en automatisk kopia",
   "restore.offerBody": "Togs {0}, på den här enheten. De kan hämtas tillbaka.",
   "restore.offerAction": "Återställ {0} konto(n)",
+  "import.fileAdded": "{0} konto(n) tillagda.",
+  "import.fileAlreadyHere": "{0} fanns redan i din lista.",
+  "import.fileEmpty": "Den här filen innehåller inga konton.",
+  "import.fileUnreadable": "{0} post(er) kunde inte läsas och hoppades över.",
+  "import.fileUnsupported": "{0} använder en kodtyp som appen inte stöder (räknarbaserad eller Steam) och hoppades över.",
+  "import.unknownFormat": "Vi kan inte läsa det här filformatet. Säkerhetskopior från vissa appar (t.ex. Alibaba Cloud) är krypterade och kan bara återställas i den appen — lägg i stället till varje konto genom att skanna dess QR-kod.",
+  "import.nothingReadable": "Inget av kontona i filen kunde läsas — inget lades till.",
+  "import.onlyUnsupported": "Alla konton i filen använder en kodtyp som appen inte stöder (räknarbaserad eller Steam) — inget lades till.",
+  "import.encryptedElsewhere": "Den här säkerhetskopian från {0} är krypterad. Exportera den igen utan lösenord eller kryptering och importera sedan den filen.",
+  "import.imageUnreadable": "Bilden kunde inte öppnas. Prova en skärmbild av QR-koden i PNG eller JPEG.",
 };
 
 export default strings;

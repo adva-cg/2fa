@@ -363,6 +363,16 @@ const strings: TranslationStrings = {
   "restore.offerTitle": "{0} compte(s) dans une copie automatique",
   "restore.offerBody": "Faite {0}, sur cet appareil. Ils peuvent être récupérés.",
   "restore.offerAction": "Restaurer {0} compte(s)",
+  "import.fileAdded": "{0} compte(s) ajouté(s).",
+  "import.fileAlreadyHere": "{0} étaient déjà dans votre liste.",
+  "import.fileEmpty": "Ce fichier ne contient aucun compte.",
+  "import.fileUnreadable": "{0} entrée(s) illisible(s), ignorée(s).",
+  "import.fileUnsupported": "{0} utilisent un type de code que cette application ne prend pas en charge (basé sur un compteur ou Steam) et ont été ignorés.",
+  "import.unknownFormat": "Nous ne savons pas lire ce format de fichier. Les sauvegardes de certaines applications (par ex. Alibaba Cloud) sont chiffrées et ne peuvent être restaurées que dans cette application — ajoutez plutôt chaque compte en scannant son code QR.",
+  "import.nothingReadable": "Aucun compte de ce fichier n'a pu être lu — rien n'a été ajouté.",
+  "import.onlyUnsupported": "Tous les comptes de ce fichier utilisent un type de code que cette application ne prend pas en charge (basé sur un compteur ou Steam) — rien n'a été ajouté.",
+  "import.encryptedElsewhere": "Cette sauvegarde de {0} est chiffrée. Exportez-la à nouveau sans mot de passe ni chiffrement, puis importez ce fichier.",
+  "import.imageUnreadable": "Impossible d'ouvrir cette image. Essayez une capture d'écran PNG ou JPEG du code QR.",
 };
 
 export default strings;
