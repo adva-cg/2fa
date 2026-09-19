@@ -381,7 +381,7 @@ const strings: TranslationStrings = {
   "import.fileUnreadable": "{0} entri tidak dapat dibaca dan dilewati.",
   "import.fileUnsupported": "{0} menggunakan jenis kode yang tidak didukung aplikasi ini (berbasis penghitung atau Steam) dan dilewati.",
   "import.unknownFormat": "Kami tidak dapat membaca format file ini. Cadangan dari beberapa aplikasi (mis. Alibaba Cloud) dienkripsi dan hanya dapat dipulihkan di aplikasi itu — tambahkan setiap akun dengan memindai kode QR-nya.",
-  "import.nothingReadable": "Tidak ada akun dalam file ini yang dapat dibaca — tidak ada yang ditambahkan.",
+  "import.nothingReadable": "Tidak ada akun dalam file ini yang dapat dibaca — tidak ada yang ditambahkan. Jika ini cadangan dari aplikasi lain, mungkin dienkripsi — tambahkan setiap akun dengan memindai kode QR-nya.",
   "import.onlyUnsupported": "Semua akun dalam file ini menggunakan jenis kode yang tidak didukung aplikasi ini (berbasis penghitung atau Steam) — tidak ada yang ditambahkan.",
   "import.encryptedElsewhere": "Cadangan dari {0} ini dienkripsi. Ekspor ulang tanpa kata sandi atau enkripsi, lalu impor file tersebut.",
 };

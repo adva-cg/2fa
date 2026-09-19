@@ -381,7 +381,7 @@ const strings: TranslationStrings = {
   "import.fileUnreadable": "Nie udało się odczytać wpisów: {0} — pominięto je.",
   "import.fileUnsupported": "Pominięto: {0} — używają typu kodu, którego ta aplikacja nie obsługuje (licznikowego lub Steam).",
   "import.unknownFormat": "Nie potrafimy odczytać formatu tego pliku. Kopie zapasowe niektórych aplikacji (np. Alibaba Cloud) są zaszyfrowane i można je przywrócić tylko w tej aplikacji — dodaj każde konto, skanując jego kod QR.",
-  "import.nothingReadable": "Nie udało się odczytać żadnego konta z tego pliku — nic nie dodano.",
+  "import.nothingReadable": "Nie udało się odczytać żadnego konta z tego pliku — nic nie dodano. Jeśli to kopia z innej aplikacji, może być zaszyfrowana — dodaj każde konto, skanując jego kod QR.",
   "import.onlyUnsupported": "Wszystkie konta w tym pliku używają typu kodu, którego ta aplikacja nie obsługuje (licznikowego lub Steam) — nic nie dodano.",
   "import.encryptedElsewhere": "Ta kopia zapasowa z {0} jest zaszyfrowana. Wyeksportuj ją ponownie bez hasła i szyfrowania, a potem zaimportuj ten plik.",
 };

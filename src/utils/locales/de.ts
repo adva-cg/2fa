@@ -381,7 +381,7 @@ const strings: TranslationStrings = {
   "import.fileUnreadable": "{0} Eintrag/Einträge konnten nicht gelesen werden und wurden übersprungen.",
   "import.fileUnsupported": "{0} verwenden einen Codetyp, den diese App nicht unterstützt (zählerbasiert oder Steam), und wurden übersprungen.",
   "import.unknownFormat": "Dieses Dateiformat können wir nicht lesen. Backups mancher Apps (z. B. Alibaba Cloud) sind verschlüsselt und lassen sich nur in dieser App wiederherstellen — füge stattdessen jedes Konto hinzu, indem du seinen QR-Code scannst.",
-  "import.nothingReadable": "Keines der Konten in dieser Datei konnte gelesen werden — nichts hinzugefügt.",
+  "import.nothingReadable": "Keines der Konten in dieser Datei konnte gelesen werden — nichts hinzugefügt. Wenn es eine Sicherung aus einer anderen App ist, ist sie womöglich verschlüsselt – füge jedes Konto stattdessen per QR-Code hinzu.",
   "import.onlyUnsupported": "Alle Konten in dieser Datei verwenden einen Codetyp, den diese App nicht unterstützt (zählerbasiert oder Steam) — nichts hinzugefügt.",
   "import.encryptedElsewhere": "Dieses Backup aus {0} ist verschlüsselt. Exportiere es erneut ohne Passwort bzw. Verschlüsselung und importiere dann diese Datei.",
 };

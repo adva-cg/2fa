@@ -381,7 +381,7 @@ const strings: TranslationStrings = {
   "import.fileUnreadable": "{0} 个条目无法读取，已跳过。",
   "import.fileUnsupported": "{0} 个使用了本应用不支持的验证码类型（基于计数器或 Steam），已跳过。",
   "import.unknownFormat": "无法读取此文件格式。某些应用（如阿里云）的备份是加密的，只能在该应用内恢复——请改为逐个扫描账户的二维码来添加。",
-  "import.nothingReadable": "此文件中的账户都无法读取——未添加任何内容。",
+  "import.nothingReadable": "此文件中的账户都无法读取——未添加任何内容。如果这是其他应用的备份，它可能已加密——请改为逐个扫描账户的二维码来添加。",
   "import.onlyUnsupported": "此文件中的所有账户都使用本应用不支持的验证码类型（基于计数器或 Steam）——未添加任何内容。",
   "import.encryptedElsewhere": "这份来自 {0} 的备份已加密。请在不设密码、不加密的情况下重新导出，然后导入该文件。",
 };

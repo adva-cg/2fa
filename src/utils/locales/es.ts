@@ -381,7 +381,7 @@ const strings: TranslationStrings = {
   "import.fileUnreadable": "{0} entrada(s) no se pudieron leer y se omitieron.",
   "import.fileUnsupported": "{0} usan un tipo de código que esta app no admite (basado en contador o Steam) y se omitieron.",
   "import.unknownFormat": "No podemos leer el formato de este archivo. Las copias de seguridad de algunas apps (p. ej., Alibaba Cloud) están cifradas y solo se pueden restaurar en esa app; añade cada cuenta escaneando su código QR.",
-  "import.nothingReadable": "No se pudo leer ninguna cuenta de este archivo; no se añadió nada.",
+  "import.nothingReadable": "No se pudo leer ninguna cuenta de este archivo; no se añadió nada. Si es una copia de seguridad de otra app, puede estar cifrada: añade cada cuenta escaneando su código QR.",
   "import.onlyUnsupported": "Todas las cuentas de este archivo usan un tipo de código que esta app no admite (basado en contador o Steam); no se añadió nada.",
   "import.encryptedElsewhere": "Esta copia de seguridad de {0} está cifrada. Vuelve a exportarla sin contraseña ni cifrado e importa ese archivo.",
 };

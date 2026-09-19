@@ -381,7 +381,7 @@ const strings: TranslationStrings = {
   "import.fileUnreadable": "{0} kayıt okunamadı ve atlandı.",
   "import.fileUnsupported": "{0} kayıt, bu uygulamanın desteklemediği bir kod türü kullanıyor (sayaç tabanlı veya Steam) ve atlandı.",
   "import.unknownFormat": "Bu dosya biçimini okuyamıyoruz. Bazı uygulamaların yedekleri (ör. Alibaba Cloud) şifrelidir ve yalnızca o uygulamada geri yüklenebilir — bunun yerine her hesabı QR kodunu tarayarak ekleyin.",
-  "import.nothingReadable": "Bu dosyadaki hesapların hiçbiri okunamadı — hiçbir şey eklenmedi.",
+  "import.nothingReadable": "Bu dosyadaki hesapların hiçbiri okunamadı — hiçbir şey eklenmedi. Başka bir uygulamanın yedeğiyse şifrelenmiş olabilir — her hesabı QR kodunu tarayarak ekleyin.",
   "import.onlyUnsupported": "Bu dosyadaki tüm hesaplar bu uygulamanın desteklemediği bir kod türü kullanıyor (sayaç tabanlı veya Steam) — hiçbir şey eklenmedi.",
   "import.encryptedElsewhere": "{0} yedeği şifreli. Parola veya şifreleme olmadan yeniden dışa aktarın, ardından o dosyayı içe aktarın.",
 };

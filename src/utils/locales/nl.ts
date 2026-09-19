@@ -381,7 +381,7 @@ const strings: TranslationStrings = {
   "import.fileUnreadable": "{0} item(s) konden niet worden gelezen en zijn overgeslagen.",
   "import.fileUnsupported": "{0} gebruiken een codetype dat deze app niet ondersteunt (op teller gebaseerd of Steam) en zijn overgeslagen.",
   "import.unknownFormat": "Dit bestandsformaat kunnen we niet lezen. Back-ups van sommige apps (bijv. Alibaba Cloud) zijn versleuteld en kunnen alleen in die app worden hersteld — voeg elk account in plaats daarvan toe door de QR-code te scannen.",
-  "import.nothingReadable": "Geen enkel account in dit bestand kon worden gelezen — er is niets toegevoegd.",
+  "import.nothingReadable": "Geen enkel account in dit bestand kon worden gelezen — er is niets toegevoegd. Is het een back-up uit een andere app, dan is die mogelijk versleuteld — voeg elk account toe door de QR-code te scannen.",
   "import.onlyUnsupported": "Alle accounts in dit bestand gebruiken een codetype dat deze app niet ondersteunt (op teller gebaseerd of Steam) — er is niets toegevoegd.",
   "import.encryptedElsewhere": "Deze back-up uit {0} is versleuteld. Exporteer opnieuw zonder wachtwoord of versleuteling en importeer dat bestand.",
 };

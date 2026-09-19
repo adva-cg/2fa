@@ -381,7 +381,7 @@ const strings: TranslationStrings = {
   "import.fileUnreadable": "{0} post(er) kunde inte läsas och hoppades över.",
   "import.fileUnsupported": "{0} använder en kodtyp som appen inte stöder (räknarbaserad eller Steam) och hoppades över.",
   "import.unknownFormat": "Vi kan inte läsa det här filformatet. Säkerhetskopior från vissa appar (t.ex. Alibaba Cloud) är krypterade och kan bara återställas i den appen — lägg i stället till varje konto genom att skanna dess QR-kod.",
-  "import.nothingReadable": "Inget av kontona i filen kunde läsas — inget lades till.",
+  "import.nothingReadable": "Inget av kontona i filen kunde läsas — inget lades till. Om det är en säkerhetskopia från en annan app kan den vara krypterad – lägg till varje konto genom att skanna dess QR-kod i stället.",
   "import.onlyUnsupported": "Alla konton i filen använder en kodtyp som appen inte stöder (räknarbaserad eller Steam) — inget lades till.",
   "import.encryptedElsewhere": "Den här säkerhetskopian från {0} är krypterad. Exportera den igen utan lösenord eller kryptering och importera sedan den filen.",
 };

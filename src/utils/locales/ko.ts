@@ -381,7 +381,7 @@ const strings: TranslationStrings = {
   "import.fileUnreadable": "항목 {0}개를 읽을 수 없어 건너뛰었습니다.",
   "import.fileUnsupported": "{0}개는 이 앱이 지원하지 않는 코드 유형(카운터 기반 또는 Steam)이라 건너뛰었습니다.",
   "import.unknownFormat": "이 파일 형식은 읽을 수 없습니다. 일부 앱(예: Alibaba Cloud)의 백업은 암호화되어 있어 해당 앱에서만 복원할 수 있습니다. 대신 각 계정의 QR 코드를 스캔해 추가하세요.",
-  "import.nothingReadable": "이 파일의 계정을 하나도 읽을 수 없습니다. 아무것도 추가되지 않았습니다.",
+  "import.nothingReadable": "이 파일의 계정을 하나도 읽을 수 없습니다. 아무것도 추가되지 않았습니다. 다른 앱의 백업이라면 암호화되어 있을 수 있습니다. 각 계정의 QR 코드를 스캔해 추가하세요.",
   "import.onlyUnsupported": "이 파일의 모든 계정이 이 앱이 지원하지 않는 코드 유형(카운터 기반 또는 Steam)입니다. 아무것도 추가되지 않았습니다.",
   "import.encryptedElsewhere": "이 {0} 백업은 암호화되어 있습니다. 비밀번호나 암호화 없이 다시 내보낸 뒤 그 파일을 가져오세요.",
 };
