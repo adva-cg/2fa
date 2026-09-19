@@ -375,6 +375,15 @@ const strings: TranslationStrings = {
   "crash.saveCopy": "アカウントのコピーを保存",
   "scan.cameraN": "カメラ {0}",
   "recovery.saveCopyFailed": "コピーを保存できませんでした。もう一度お試しください。",
+  "import.fileAdded": "{0} 件のアカウントを追加しました。",
+  "import.fileAlreadyHere": "{0} 件は既に一覧にありました。",
+  "import.fileEmpty": "このファイルにはアカウントがありません。",
+  "import.fileUnreadable": "{0} 件の項目は読み取れなかったため、スキップしました。",
+  "import.fileUnsupported": "{0} 件はこのアプリが対応していない種類のコード（カウンター方式または Steam）のため、スキップしました。",
+  "import.unknownFormat": "このファイル形式は読み取れません。一部のアプリ（Alibaba Cloud など）のバックアップは暗号化されており、そのアプリでしか復元できません。各アカウントの QR コードをスキャンして追加してください。",
+  "import.nothingReadable": "このファイルのアカウントを 1 件も読み取れませんでした。何も追加されていません。",
+  "import.onlyUnsupported": "このファイルのアカウントはすべて、このアプリが対応していない種類のコード（カウンター方式または Steam）です。何も追加されていません。",
+  "import.encryptedElsewhere": "この {0} のバックアップは暗号化されています。パスワードや暗号化なしで再度エクスポートし、そのファイルをインポートしてください。",
 };
 
 export default strings;

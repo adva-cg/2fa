@@ -375,6 +375,15 @@ const strings: TranslationStrings = {
   "crash.saveCopy": "احفظ نسخة من حساباتي",
   "scan.cameraN": "الكاميرا {0}",
   "recovery.saveCopyFailed": "تعذّر حفظ النسخة. يُرجى المحاولة مرة أخرى.",
+  "import.fileAdded": "تمت إضافة {0} حساب.",
+  "import.fileAlreadyHere": "{0} موجودة مسبقًا في قائمتك.",
+  "import.fileEmpty": "لا يحتوي هذا الملف على أي حسابات.",
+  "import.fileUnreadable": "تعذّرت قراءة {0} إدخال وتم تخطيها.",
+  "import.fileUnsupported": "{0} تستخدم نوع رمز لا يدعمه هذا التطبيق (قائم على العدّاد أو Steam) وتم تخطيها.",
+  "import.unknownFormat": "لا يمكننا قراءة تنسيق هذا الملف. النسخ الاحتياطية لبعض التطبيقات (مثل Alibaba Cloud) مشفّرة ولا يمكن استعادتها إلا داخل ذلك التطبيق — أضف كل حساب بمسح رمز QR الخاص به بدلًا من ذلك.",
+  "import.nothingReadable": "تعذّرت قراءة أي حساب في هذا الملف — لم تتم إضافة شيء.",
+  "import.onlyUnsupported": "جميع الحسابات في هذا الملف تستخدم نوع رمز لا يدعمه هذا التطبيق (قائم على العدّاد أو Steam) — لم تتم إضافة شيء.",
+  "import.encryptedElsewhere": "هذه النسخة الاحتياطية من {0} مشفّرة. صدّرها مرة أخرى بدون كلمة مرور أو تشفير، ثم استورد ذلك الملف.",
 };
 
 export default strings;

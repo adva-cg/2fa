@@ -5,7 +5,7 @@ import { useVault } from '@/hooks/useVault';
 import { AccountCard, type ViewMode } from '@/components/AccountCard';
 import { SearchBar } from '@/components/SearchBar';
 import { AddAccountModal } from '@/components/AddAccountModal';
-import { ExportImport, importBackupText, importResultMessage } from '@/components/ExportImport';
+import { ExportImport, importBackupText, importResultKind, importResultMessage } from '@/components/ExportImport';
 import { importURIList, looksLikeURIList } from '@/utils/uri-import';
 import { accountLabel } from '@/utils/account-label';
 import { EditAccountModal } from '@/components/EditAccountModal';
@@ -34,7 +34,7 @@ import { addMultipleAccounts, getAccounts } from '@/utils/storage';
 import { listBackupSummaries, type BackupSummary } from '@/utils/auto-backup';
 import { shouldShowBackupReminder, markBackupDone } from '@/utils/backup-reminder';
 import { shouldShowVaultPrompt, markVaultPromptShown } from '@/utils/vault-prompt';
-import { describeImport } from '@/utils/import-message';
+import { describeImport, importErrorMessage } from '@/utils/import-message';
 import { confirmDialog, promptDialog, toast } from '@/utils/ui-feedback';
 import { FeedbackHost } from '@/components/FeedbackHost';
 import { shouldShowPromoBanner, recordFirstOpen } from '@/utils/promo-banner';
@@ -700,20 +700,14 @@ function App() {
           // Entries that could no longer be read are named rather than rounded
           // up to "successful" — a restore that quietly dropped rows is the one
           // case where the user needs to go looking for another copy.
-          toast(
-            imported.unreadable > 0 ? 'info' : 'success',
-            importResultMessage(imported, language)
-          );
+          toast(importResultKind(imported), importResultMessage(imported, language));
         }
       }
     } catch (error) {
       console.error('Import failed:', error);
-      toast(
-        'error',
-        error instanceof Error && error.name === 'WrongExportPasswordError'
-          ? t('import.wrongPassword')
-          : t('import.failed')
-      );
+      // The same wording as Settings → Import: an encrypted Aegis or 2FAS
+      // export, or an Alibaba Cloud backup, each needs its own next step.
+      toast('error', importErrorMessage(error, language));
     }
 
     e.target.value = '';

@@ -375,6 +375,15 @@ const strings: TranslationStrings = {
   "crash.saveCopy": "Guardar una copia de mis cuentas",
   "scan.cameraN": "Cámara {0}",
   "recovery.saveCopyFailed": "No se pudo guardar la copia. Inténtalo de nuevo.",
+  "import.fileAdded": "{0} cuenta(s) añadida(s).",
+  "import.fileAlreadyHere": "{0} ya estaban en tu lista.",
+  "import.fileEmpty": "Este archivo no contiene cuentas.",
+  "import.fileUnreadable": "{0} entrada(s) no se pudieron leer y se omitieron.",
+  "import.fileUnsupported": "{0} usan un tipo de código que esta app no admite (basado en contador o Steam) y se omitieron.",
+  "import.unknownFormat": "No podemos leer el formato de este archivo. Las copias de seguridad de algunas apps (p. ej., Alibaba Cloud) están cifradas y solo se pueden restaurar en esa app; añade cada cuenta escaneando su código QR.",
+  "import.nothingReadable": "No se pudo leer ninguna cuenta de este archivo; no se añadió nada.",
+  "import.onlyUnsupported": "Todas las cuentas de este archivo usan un tipo de código que esta app no admite (basado en contador o Steam); no se añadió nada.",
+  "import.encryptedElsewhere": "Esta copia de seguridad de {0} está cifrada. Vuelve a exportarla sin contraseña ni cifrado e importa ese archivo.",
 };
 
 export default strings;

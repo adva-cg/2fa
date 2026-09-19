@@ -19,6 +19,14 @@ import { replaceAllBackups, wipeAllBackups } from './auto-backup';
 import { isSyncEnabled, setSyncPreference } from './sync-preference';
 import { deletedHere, forgetDeleted, markDeleted } from './tombstones';
 import { cleanSecret } from './totp';
+import {
+  ImportRejectedError,
+  normalizeEntry,
+  planImport,
+  readImportFile,
+  type ImportFile,
+  type ImportReport,
+} from './import-formats';
 
 const STORAGE_KEY = 'authenticator_accounts';
 const SYNC_OVERFLOW_KEY = 'syncOverflow';
@@ -887,30 +895,23 @@ export async function exportAccounts(): Promise<string> {
   return JSON.stringify(accounts, null, 2);
 }
 
-export async function importAccounts(jsonData: string): Promise<ImportResult> {
+export async function importAccounts(jsonData: string): Promise<ImportReport> {
+  let file: ImportFile;
   try {
-    const parsed = JSON.parse(jsonData);
-
-    // Support both old format (array) and new format (object with metadata)
-    let importedAccounts: Account[];
-
-    if (Array.isArray(parsed)) {
-      // Old format: direct array of accounts
-      importedAccounts = parsed;
-    } else if (parsed.accounts && Array.isArray(parsed.accounts)) {
-      // New format: object with metadata
-      importedAccounts = parsed.accounts;
-      console.log(`Importing backup from ${parsed.exportDate || 'unknown date'}`);
-    } else {
-      throw new Error('Invalid format');
-    }
-
-    return await importAccountList(importedAccounts);
+    // Our own plain export, a bare array from before 1.2, or another
+    // authenticator's JSON — readImportFile tells them apart.
+    file = readImportFile(JSON.parse(jsonData));
   } catch (error) {
-    console.error('Error importing accounts:', error);
-    if (error instanceof VaultLockedError) throw error;
-    throw new Error('Failed to import accounts. Invalid format.');
+    // Not JSON at all is the likeliest shape of another app's sealed backup
+    // (Alibaba Cloud's, for one). Said as such rather than as "invalid format",
+    // which reads as "your backup is damaged" to someone whose backup is fine
+    // and simply not ours to open.
+    if (error instanceof ImportRejectedError) throw error;
+    console.error('Error importing accounts: not a JSON document');
+    throw new ImportRejectedError('unknown-format');
   }
+
+  return await importAccountList(file.entries, file);
 }
 
 export interface ImportResult {
@@ -923,82 +924,57 @@ export interface ImportResult {
   unreadable: number;
 }
 
-/** Longest group name we will store. Display truncates anyway; this keeps a
- *  pathological name out of the sync chunk budget and off every record. */
-const MAX_GROUP_LENGTH = 64;
-
 /**
  * Coerce one entry from a file into an Account, or return null if it is beyond
- * saving.
- *
- * Only `secret` is irreplaceable — it is the account. A missing id or name can
- * be filled in, and rejecting the file over either is how one bad row used to
- * cost someone every other row in their only backup.
- *
- * Types are checked, not assumed: these values come from a file, and until 1.11
- * a `group` that was a number rather than a string sailed through and threw on
- * `.trim()` during the next render — a permanently blank popup with the data
- * still on disk and no way to reach the export button.
+ * saving. The rules live in import-formats.ts, where every importer shares
+ * them; this is the shape restoreFromSnapshot wants.
  */
 function normalizeImported(entry: unknown, index: number): Account | null {
-  if (!entry || typeof entry !== 'object') return null;
-  const acc = entry as Record<string, unknown>;
-
-  if (typeof acc.secret !== 'string' || !acc.secret.trim()) return null;
-
-  const name = typeof acc.name === 'string' && acc.name.trim()
-    ? acc.name
-    : typeof acc.issuer === 'string' && acc.issuer.trim()
-      ? acc.issuer
-      : 'Unknown';
-
-  const normalized: Account = {
-    ...(acc as unknown as Account),
-    id: typeof acc.id === 'string' && acc.id ? acc.id : `imported-${Date.now()}-${index}`,
-    name,
-    issuer: typeof acc.issuer === 'string' ? acc.issuer : '',
-    // Normalised on the way in, like every parser does, so the stored spelling
-    // is the one the duplicate check and the sync merge compare against.
-    secret: cleanSecret(acc.secret),
-  };
-
-  if (typeof acc.group === 'string') {
-    const group = acc.group.slice(0, MAX_GROUP_LENGTH);
-    if (group.trim()) normalized.group = group;
-    else delete normalized.group;
-  } else {
-    delete normalized.group;
-  }
-
-  return normalized;
+  const result = normalizeEntry(entry, index);
+  return 'account' in result ? result.account : null;
 }
 
-/** Shared merge path for JSON, encrypted-file and QR imports. */
-export async function importAccountList(importedAccounts: Account[]): Promise<ImportResult> {
+/**
+ * Shared merge path for JSON, encrypted-file, CXF and other apps' files.
+ *
+ * `from` carries what the file reader already refused, so the report counts
+ * every entry in the file rather than only the ones that reached this list.
+ * Throws ImportRejectedError when entries arrived and none can be stored.
+ */
+export async function importAccountList(
+  importedAccounts: unknown[],
+  from: Partial<Omit<ImportFile, 'entries'>> = {}
+): Promise<ImportReport> {
   if (!Array.isArray(importedAccounts)) {
     throw new Error('Invalid format');
   }
 
-  const usable: Account[] = [];
-  for (const [index, entry] of importedAccounts.entries()) {
-    const account = normalizeImported(entry, index);
-    if (account) usable.push(account);
+  const { usable, unreadable, unsupported } = planImport({
+    entries: importedAccounts,
+    unreadable: from.unreadable ?? 0,
+    unsupported: from.unsupported ?? 0,
+    recognised: from.recognised ?? true,
+  });
+
+  if (usable.length === 0) {
+    // An empty file. Nothing to write, and saving the list over itself would
+    // cost a sync push for nothing.
+    return { added: 0, alreadyHere: 0, unreadable, unsupported };
   }
 
-  const unreadable = importedAccounts.length - usable.length;
-
-  // A file with entries in it but nothing usable is a broken file, and saying so
-  // is more honest than reporting that zero accounts were restored.
-  if (importedAccounts.length > 0 && usable.length === 0) {
-    throw new Error('Invalid account structure');
-  }
-
+  // De-duplicated within the file too, and ids that collide reassigned: see
+  // newAccountsFrom.
   return mutateAccounts((existingAccounts, stored) => {
     const newAccounts = newAccountsFrom(usable, existingAccounts, stored, 'imported');
 
     return {
       accounts: [...existingAccounts, ...newAccounts],
-      result: { added: newAccounts.length, unreadable },
+      result: {
+        added: newAccounts.length,
+        alreadyHere: usable.length - newAccounts.length,
+        unreadable,
+        unsupported,
+      },
     };
   });
 }

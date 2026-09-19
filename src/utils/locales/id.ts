@@ -375,6 +375,15 @@ const strings: TranslationStrings = {
   "crash.saveCopy": "Simpan salinan akun saya",
   "scan.cameraN": "Kamera {0}",
   "recovery.saveCopyFailed": "Salinan tidak dapat disimpan. Silakan coba lagi.",
+  "import.fileAdded": "{0} akun ditambahkan.",
+  "import.fileAlreadyHere": "{0} sudah ada di daftar Anda.",
+  "import.fileEmpty": "File ini tidak berisi akun.",
+  "import.fileUnreadable": "{0} entri tidak dapat dibaca dan dilewati.",
+  "import.fileUnsupported": "{0} menggunakan jenis kode yang tidak didukung aplikasi ini (berbasis penghitung atau Steam) dan dilewati.",
+  "import.unknownFormat": "Kami tidak dapat membaca format file ini. Cadangan dari beberapa aplikasi (mis. Alibaba Cloud) dienkripsi dan hanya dapat dipulihkan di aplikasi itu — tambahkan setiap akun dengan memindai kode QR-nya.",
+  "import.nothingReadable": "Tidak ada akun dalam file ini yang dapat dibaca — tidak ada yang ditambahkan.",
+  "import.onlyUnsupported": "Semua akun dalam file ini menggunakan jenis kode yang tidak didukung aplikasi ini (berbasis penghitung atau Steam) — tidak ada yang ditambahkan.",
+  "import.encryptedElsewhere": "Cadangan dari {0} ini dienkripsi. Ekspor ulang tanpa kata sandi atau enkripsi, lalu impor file tersebut.",
 };
 
 export default strings;

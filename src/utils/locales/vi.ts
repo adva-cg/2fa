@@ -375,6 +375,15 @@ const strings: TranslationStrings = {
   "crash.saveCopy": "Lưu một bản sao tài khoản của tôi",
   "scan.cameraN": "Camera {0}",
   "recovery.saveCopyFailed": "Không thể lưu bản sao. Vui lòng thử lại.",
+  "import.fileAdded": "Đã thêm {0} tài khoản.",
+  "import.fileAlreadyHere": "{0} tài khoản đã có trong danh sách.",
+  "import.fileEmpty": "Tệp này không có tài khoản nào.",
+  "import.fileUnreadable": "{0} mục không đọc được và đã bị bỏ qua.",
+  "import.fileUnsupported": "{0} mục dùng loại mã mà ứng dụng này không hỗ trợ (dựa trên bộ đếm hoặc Steam) và đã bị bỏ qua.",
+  "import.unknownFormat": "Chúng tôi không đọc được định dạng tệp này. Bản sao lưu của một số ứng dụng (ví dụ Alibaba Cloud) được mã hóa và chỉ khôi phục được trong chính ứng dụng đó — hãy thêm từng tài khoản bằng cách quét mã QR của nó.",
+  "import.nothingReadable": "Không đọc được tài khoản nào trong tệp này — không có gì được thêm.",
+  "import.onlyUnsupported": "Mọi tài khoản trong tệp này đều dùng loại mã mà ứng dụng này không hỗ trợ (dựa trên bộ đếm hoặc Steam) — không có gì được thêm.",
+  "import.encryptedElsewhere": "Bản sao lưu này từ {0} đã được mã hóa. Hãy xuất lại mà không đặt mật khẩu hay mã hóa, rồi nhập tệp đó.",
 };
 
 export default strings;

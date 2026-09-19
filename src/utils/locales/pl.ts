@@ -375,6 +375,15 @@ const strings: TranslationStrings = {
   "crash.saveCopy": "Zapisz kopię moich kont",
   "scan.cameraN": "Kamera {0}",
   "recovery.saveCopyFailed": "Nie udało się zapisać kopii. Spróbuj ponownie.",
+  "import.fileAdded": "Dodano kont: {0}.",
+  "import.fileAlreadyHere": "Już na liście: {0}.",
+  "import.fileEmpty": "Ten plik nie zawiera żadnych kont.",
+  "import.fileUnreadable": "Nie udało się odczytać wpisów: {0} — pominięto je.",
+  "import.fileUnsupported": "Pominięto: {0} — używają typu kodu, którego ta aplikacja nie obsługuje (licznikowego lub Steam).",
+  "import.unknownFormat": "Nie potrafimy odczytać formatu tego pliku. Kopie zapasowe niektórych aplikacji (np. Alibaba Cloud) są zaszyfrowane i można je przywrócić tylko w tej aplikacji — dodaj każde konto, skanując jego kod QR.",
+  "import.nothingReadable": "Nie udało się odczytać żadnego konta z tego pliku — nic nie dodano.",
+  "import.onlyUnsupported": "Wszystkie konta w tym pliku używają typu kodu, którego ta aplikacja nie obsługuje (licznikowego lub Steam) — nic nie dodano.",
+  "import.encryptedElsewhere": "Ta kopia zapasowa z {0} jest zaszyfrowana. Wyeksportuj ją ponownie bez hasła i szyfrowania, a potem zaimportuj ten plik.",
 };
 
 export default strings;
