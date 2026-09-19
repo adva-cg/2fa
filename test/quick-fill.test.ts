@@ -108,4 +108,68 @@ export async function run(): Promise<void> {
   check('and is visible to the service worker', areas.local[pref.QUICK_FILL_ENABLED_KEY] === false);
   await pref.setQuickFillEnabled(true);
   check('turning it back on works', await pref.isQuickFillEnabled());
+
+  // Quick fill never opens the popup, so nothing on its path ever measured the
+  // clock: it took whatever correction was on disk and filled the result into
+  // a sign-in form. A clock five minutes slow, measured once, then fixed by the
+  // OS — and every code it filled for the next two days was five minutes ahead.
+  scenario('Quick fill does not fill a code from a correction the clock has outlived');
+  await resetState();
+  {
+    const storage = await import('@/utils/storage');
+    const totp = await import('@/utils/totp');
+    const timeSync = await import('@/utils/time-sync');
+    const { runQuickFill } = await import('@/background/quick-fill');
+    await storage.saveAccounts(ACCOUNTS);
+
+    const TRUE_MS = Date.UTC(2026, 7, 18, 12, 0, 0);
+    const SLOW = 300_000;
+    const realNow = Date.now;
+    const realFetch = (globalThis as any).fetch;
+    const pin = (ms: number) => ((Date as any).now = () => ms);
+
+    // Three sources, all telling the truth about `trueMs`.
+    const honestAbout = (trueMs: number) => async (input: any) => {
+      const url = String(input);
+      const d = new Date(trueMs);
+      if (url.includes('akamai')) return new Response(new Date(Math.floor(trueMs / 1000) * 1000).toISOString().replace('.000Z', 'Z'));
+      if (url.includes('cloudflare')) return new Response(`ts=${Math.floor(trueMs / 1000)}.000\n`);
+      return new Response(JSON.stringify({
+        year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(),
+        hour: d.getUTCHours(), minute: d.getUTCMinutes(), seconds: d.getUTCSeconds(), milliSeconds: d.getUTCMilliseconds(),
+      }));
+    };
+
+    const filled: (string | null)[] = [];
+    (globalThis as any).chrome.scripting = {
+      async executeScript({ args }: any) {
+        filled.push(args[0].code);
+        return [{ result: 'filled' }];
+      },
+    };
+
+    try {
+      // The popup measured the slow clock and stored its correction.
+      pin(TRUE_MS - SLOW);
+      (globalThis as any).fetch = honestAbout(TRUE_MS);
+      await timeSync.checkTimeSync();
+
+      // Half a minute later the OS has fixed the clock. The service worker
+      // wakes with nothing in memory, as it does for every shortcut press.
+      const fixedAt = TRUE_MS + 30_000;
+      pin(fixedAt);
+      (globalThis as any).fetch = honestAbout(fixedAt);
+      totp.setTimeOffsetMs(0);
+      await runQuickFill({ tabId: 1, pageUrl: 'https://github.com/login' });
+
+      const expected = totp.generateCodeAt(GITHUB, fixedAt);
+      check('a code was filled', filled.length === 1, `${filled.length} fills`);
+      check('and it is the code for the real time', filled[0] === expected, `${filled[0]} vs ${expected}`);
+    } finally {
+      (Date as any).now = realNow;
+      (globalThis as any).fetch = realFetch;
+      delete (globalThis as any).chrome.scripting;
+      totp.setTimeOffsetMs(0);
+    }
+  }
 }
