@@ -342,6 +342,9 @@ export function generateTOTP(account: Account): TOTPCode {
   };
 }
 
+/** Accounts whose failure has already been logged; see tryGenerateTOTP. */
+const reportedBroken = new Set<string>();
+
 /**
  * Generation that cannot take the popup down.
  *
@@ -354,7 +357,12 @@ export function tryGenerateTOTP(account: Account): TOTPCode | null {
   try {
     return generateTOTP(account);
   } catch (error) {
-    console.error('Could not generate a code for account', account.id, error);
+    // Once per account, not once per tick: a broken row re-renders every
+    // second in every open window, and the console was nothing but this.
+    if (!reportedBroken.has(account.id)) {
+      reportedBroken.add(account.id);
+      console.error('Could not generate a code for account', account.id, error);
+    }
     return null;
   }
 }

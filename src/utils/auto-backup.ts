@@ -222,6 +222,17 @@ export async function wipeAllBackups(): Promise<void> {
 
 // Auto backup function - should be called periodically
 export async function autoBackup(accounts: StoredAccount[]): Promise<void> {
+  // One window at a time, and a second one simply skips. Opening the popup and
+  // the side panel together had each find yesterday's copy, each write today's,
+  // and the extra same-day copy pushed the oldest day out of the seven kept.
+  const locks = (globalThis.navigator as Navigator | undefined)?.locks;
+  if (!locks) return backupIfDue(accounts);
+  await locks.request('authenticator-auto-backup', { ifAvailable: true }, async lock => {
+    if (lock) await backupIfDue(accounts);
+  });
+}
+
+async function backupIfDue(accounts: StoredAccount[]): Promise<void> {
   try {
     const latestBackup = await getLatestBackup();
     const ONE_DAY = 24 * 60 * 60 * 1000;

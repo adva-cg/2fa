@@ -137,11 +137,17 @@ const later = (fn: () => void) => setTimeout(fn, 0);
  */
 function makeLockManager() {
   const tails = new Map<string, Promise<void>>();
+  const busy = new Map<string, number>();
   return {
     request(name: string, optionsOrCallback: unknown, maybeCallback?: unknown) {
       const callback = (typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback) as (
-        lock: { name: string; mode: string }
+        lock: { name: string; mode: string } | null
       ) => unknown;
+      const options = (typeof optionsOrCallback === 'object' ? optionsOrCallback : {}) as { ifAvailable?: boolean };
+      // ifAvailable: granted only when nobody holds or waits for the lock;
+      // otherwise the callback runs at once with null, as in Chrome.
+      if (options?.ifAvailable && busy.get(name)) return Promise.resolve().then(() => callback(null));
+      busy.set(name, (busy.get(name) ?? 0) + 1);
       const previous = tails.get(name) ?? Promise.resolve();
       let release!: () => void;
       const held = new Promise<void>(resolve => (release = resolve));
@@ -150,6 +156,7 @@ function makeLockManager() {
         try {
           return await callback({ name, mode: 'exclusive' });
         } finally {
+          busy.set(name, (busy.get(name) ?? 1) - 1);
           release();
         }
       });

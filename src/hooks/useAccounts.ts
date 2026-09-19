@@ -9,7 +9,7 @@ import {
   deleteAccount as deleteAccountFromStorage,
   updateAccount as updateAccountInStorage,
   reorderAccounts as reorderAccountsInStorage,
-  quarantinedCount,
+  lockedAwayCount,
 } from '@/utils/storage';
 import { autoBackup, getLatestBackup } from '@/utils/auto-backup';
 import { VaultLockedError } from '@/utils/vault';
@@ -47,7 +47,7 @@ export function useAccounts(vaultLocked: boolean) {
       setAccounts(data);
       setError(null);
       // Set by the read that just happened, so it has to be sampled after it.
-      setHeldCount(quarantinedCount());
+      setHeldCount(lockedAwayCount());
 
       // Trigger auto backup (non-blocking). The snapshot stores records in
       // their on-disk form, so an encrypted vault yields an encrypted backup.

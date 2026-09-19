@@ -144,6 +144,7 @@ export async function run(): Promise<void> {
   const afterOrphan = await storage.getAccounts();
   check('the readable accounts still load', afterOrphan.length === 3, `got ${afterOrphan.length}`);
   check('the unreadable record is quarantined, not counted', storage.quarantinedCount() === 1);
+  check('another vault\'s record is counted as locked away', storage.lockedAwayCount() === 1);
   await storage.updateAccount('a1', { issuer: 'GitHub Inc' });
   await flush();
   check('a later save keeps the quarantined record', JSON.stringify(areas.local.authenticator_accounts).includes(orphan.enc));
@@ -386,6 +387,9 @@ export async function run(): Promise<void> {
     check('the list loads', Array.isArray(loaded), String(loaded));
     check('with the three real accounts and nothing else', Array.isArray(loaded) && loaded.length === 3 && loaded.every((a: any) => typeof a.id === 'string'));
     check('the rest is held, not shown', storage.quarantinedCount() === junk.length, String(storage.quarantinedCount()));
+    // Held, but not an account under some other password — the banner that
+    // says so sent people with protection off looking for one.
+    check('and not counted as locked away', storage.lockedAwayCount() === 0, String(storage.lockedAwayCount()));
     const added = await storage.addAccount({ ...ACCOUNTS[0], id: 'a4', secret: 'NBSWY3DPEB3W64TM' }).catch(error => error);
     check('an account can still be added', added === true, String(added));
     const kept = areas.local.authenticator_accounts as any[];

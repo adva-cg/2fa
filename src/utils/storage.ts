@@ -393,6 +393,18 @@ export function quarantinedCount(): number {
 }
 
 /**
+ * Held records that are accounts under some other password.
+ *
+ * What the UI counts in "N more account(s) here can't be read with this
+ * password". A `null` or a record with no secret is held too, so it is never
+ * lost, but no password opens it — telling someone with protection off that
+ * three stray entries need "a different password" sent them looking for one.
+ */
+export function lockedAwayCount(): number {
+  return quarantined.filter(record => isEncryptedAccount(record)).length;
+}
+
+/**
  * Drop the held records.
  *
  * The list is refreshed by every read, and every mutation path reads before it

@@ -12,6 +12,7 @@ const VPN: any = { id: 'v2', name: 'alice', issuer: 'Mullvad', secret: 'KRSXG5CT
 const DESK = [VERCEL, VPN];
 
 export async function run(): Promise<void> {
+  await runWorkerLanguage();
   const s = await import('@/utils/suggestions');
   const pref = await import('@/utils/quick-fill');
 
@@ -172,4 +173,26 @@ export async function run(): Promise<void> {
       totp.setTimeOffsetMs(0);
     }
   }
+}
+
+// Chrome refuses `import()` in a service worker, and the worker used to load
+// its language through one — so the menu item was English in every language.
+// The mock cannot refuse the import, so the second check pins the worker to the
+// bundled tables.
+export async function runWorkerLanguage(): Promise<void> {
+  scenario('The right-click item is in the language the user chose');
+  const created: any[] = [];
+  (globalThis as any).chrome.contextMenus = {
+    removeAll: async () => {},
+    create: (item: any) => { created.push(item); },
+  };
+  const qf = await import('@/background/quick-fill');
+  await chrome.storage.local.set({ language: 'zh', quickFillEnabled: true });
+  await qf.syncContextMenu();
+  const zh = (await import('@/utils/locales/zh')).default;
+  const title = created.find(item => item.id === qf.MENU_ID)?.title;
+  check('the menu title is Chinese', title === zh['quickFill.menu'], String(title));
+  const source = (await import('node:fs')).readFileSync('src/background/quick-fill.ts', 'utf8');
+  check('the worker does not load languages through import()', !/\bloadLanguage\(/.test(source));
+  await chrome.storage.local.remove('language');
 }

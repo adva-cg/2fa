@@ -19,12 +19,13 @@ import { openAppFor } from './open-mode';
 import {
   createT,
   detectLanguage,
-  loadLanguage,
   matchLanguage,
+  activateLanguageTable,
   type Language,
   type TranslationKey,
 } from '@/utils/i18n';
 import { quickFillInPage, type QuickFillOutcome } from './quick-fill-page';
+import { LANGUAGE_TABLES } from './locales';
 
 export const MENU_ID = 'quick-fill';
 export const COMMAND_ID = 'quick-fill';
@@ -45,11 +46,9 @@ type Translate = (key: TranslationKey, ...args: (string | number)[]) => string;
 /**
  * The language the user picked in the popup, not the browser's.
  *
- * `loadLanguage` pulls its table in with a dynamic import, which is how the
- * popup avoids parsing twenty languages to show one. If that import is ever
- * refused in a service worker, it fails soft: the English table is compiled in
- * statically and stays active, so the worst outcome is an English menu item,
- * never a missing one.
+ * Not `loadLanguage`: its dynamic import is refused in a service worker, and
+ * that refusal was the whole story of why the menu item and the in-page notices
+ * stayed English in every language. The tables are bundled here instead.
  */
 async function translator(): Promise<Translate> {
   let language: Language = detectLanguage();
@@ -59,7 +58,7 @@ async function translator(): Promise<Translate> {
   } catch {
     // Preference unreadable — the detected language is still better than none.
   }
-  await loadLanguage(language);
+  activateLanguageTable(language, LANGUAGE_TABLES[language]);
   return createT(language);
 }
 

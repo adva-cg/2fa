@@ -168,6 +168,20 @@ export async function loadLanguage(language: Language): Promise<void> {
   }
 }
 
+/**
+ * Activate a table the caller already holds, without the dynamic import.
+ *
+ * For the service worker: Chrome refuses `import()` there outright
+ * ("import() is disallowed on ServiceWorkerGlobalScope"), so loadLanguage
+ * failed on every wake and the right-click item and the in-page notices were
+ * English for everyone. The worker imports its tables statically instead.
+ */
+export function activateLanguageTable(language: Language, strings: TranslationStrings): void {
+  loaded[language] = strings;
+  active = strings;
+  activeLanguage = language;
+}
+
 export function getActiveLanguage(): Language {
   return activeLanguage;
 }
