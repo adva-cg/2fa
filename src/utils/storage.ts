@@ -13,6 +13,7 @@ import {
   saveVaultMeta,
   unlockWithPassword,
   VaultLockedError,
+  type VaultMeta,
   verifyPassword,
 } from './vault';
 import { replaceAllBackups, wipeAllBackups } from './auto-backup';
@@ -27,9 +28,12 @@ import {
   type ImportFile,
   type ImportReport,
 } from './import-formats';
+import { withAccountsLock } from './write-lock';
 
 const STORAGE_KEY = 'authenticator_accounts';
 const SYNC_OVERFLOW_KEY = 'syncOverflow';
+/** Owned by vault.ts; read here in the same get as the records a save replaces. */
+const VAULT_META_KEY = 'vault_meta';
 
 /**
  * Whether a storage change event means the account list on screen may be stale.
@@ -68,19 +72,31 @@ export async function setSyncEnabled(enabled: boolean): Promise<void> {
   await setSyncPreference(enabled);
 
   if (enabled) {
-    await pushToSync(await getStoredAccounts(), { force: true }).catch(() => {});
+    await pushLatest({ force: true, merge: true }).catch(() => {});
 
     // The metadata has to go back up as well, or a second device sees the
     // synced records and has no way to derive the key that opens them.
-    const meta = await getVaultMeta();
-    if (meta) await saveVaultMeta(meta);
+    await withAccountsLock(async () => {
+      const meta = await getVaultMeta();
+      if (meta) await saveVaultMeta(meta);
+    });
     return;
   }
 
   // Purge both the accounts and the vault metadata: leaving the wrapped master
   // key behind would keep an offline brute-force target on Google's servers
   // after the user asked us to stop using them.
-  await chrome.storage.sync.remove([...(await syncKeysInUse()), 'vault_meta']).catch(() => {});
+  //
+  // This is the ONLY place a device with sync off touches the sync area, and
+  // that is a decision, not an accident. The area is shared by every Chrome
+  // signed in to the same Google account, so this also takes the copy another
+  // machine put there — which is what the setting promises ("Turning this off
+  // also removes them from Google's servers"). Those machines keep their local
+  // copies and put theirs back on their next save. What must NOT happen is the
+  // purge repeating on every later save here, as it used to: each time a
+  // sync-on machine pushed, the next rename on this one wiped it again, so the
+  // other machines effectively had no cloud copy at all.
+  await chrome.storage.sync.remove([...(await syncKeysInUse()), VAULT_META_KEY]).catch(() => {});
 }
 
 // Chrome measures the quota in UTF-8 bytes, and `String.length` counts UTF-16
@@ -227,14 +243,20 @@ async function isSyncTrustworthy(): Promise<boolean> {
  * on every popup open. Without it, a user who adds a single account on a fresh
  * profile and never edits it again would keep that account out of sync forever.
  */
-async function replayHeldSyncPush(records: StoredAccount[]): Promise<void> {
+async function replayHeldSyncPush(): Promise<void> {
   try {
     const stored = await chrome.storage.local.get(SYNC_PENDING_KEY);
     if (stored[SYNC_PENDING_KEY] !== true) return;
     if (!(await isSyncTrustworthy())) return;
 
     await chrome.storage.local.set({ [SYNC_PENDING_KEY]: false });
-    await pushToSync(records, { force: true });
+    // The replay is a forced push that prunes every chunk beyond what it
+    // writes, so it has to carry the merged list — which pushLatest reads, under
+    // the lock, at the moment it pushes. Replaying local alone cut the cloud
+    // copy to this device's accounts at the exact moment another device's
+    // arrived: a fresh install with one new account, meeting thirty from the
+    // old machine, left one in sync.
+    await pushLatest({ force: true, merge: true });
   } catch (error) {
     console.warn('Could not replay the held sync push:', error);
   }
@@ -249,15 +271,36 @@ interface PushOptions {
    * cleartext or orphaned ciphertext up there is worse than the race.
    */
   force?: boolean;
+  /**
+   * Let cleartext go up while vault metadata still exists. Only for the two
+   * writes that are, by definition, leaving the vault: turning it off, and
+   * rolling back a vault that never finished turning on.
+   */
+  cleartextAllowed?: boolean;
 }
 
 /** Throws if the write is rejected, so callers can react to quota failures. */
 async function pushToSync(records: StoredAccount[], options: PushOptions = {}): Promise<void> {
+  // Sync off means this device leaves the area alone. It used to remove every
+  // account key here instead — on every save — which deleted the copy each
+  // sync-on machine on the same Google account had just put up. The purge the
+  // setting promises happens once, in setSyncEnabled(false).
+  if (!(await isSyncEnabled())) return;
+
   const stale = await syncKeysInUse();
 
-  if (!(await isSyncEnabled())) {
-    if (stale.length) await chrome.storage.sync.remove(stale).catch(() => {});
-    return;
+  if (!options.cleartextAllowed && (await getVaultMeta())) {
+    // A list encoded before the vault was switched on in another window, or a
+    // cleartext record merged in from an older device while this one was
+    // locked: either way, a secret in the clear on Google's servers under a
+    // vault the user believes is protecting it. Local keeps such a record until
+    // the next save encrypts it; sync only ever gets the ciphertext.
+    const sealed = records.filter(isEncryptedAccount);
+    if (sealed.length !== records.length) {
+      const withheld = records.length - sealed.length;
+      console.warn(`Keeping ${withheld} unencrypted record(s) out of sync under a vault`);
+      records = sealed;
+    }
   }
 
   if (!options.force && stale.length === 0 && !(await isSyncTrustworthy())) {
@@ -366,9 +409,11 @@ async function requireKeys() {
   return deriveKeys(masterKeyBytes);
 }
 
-async function encodeAccounts(accounts: Account[]): Promise<StoredAccount[]> {
-  const meta = await getVaultMeta();
+/** `meta` is passed by a save that must compare it with what it overwrites. */
+async function encodeAccounts(accounts: Account[], meta?: VaultMeta | null): Promise<StoredAccount[]> {
+  if (meta === undefined) meta = await getVaultMeta();
   if (!meta) return accounts;
+  const vaultId = meta.vaultId;
 
   const { dataKey, fingerprintKey } = await requireKeys();
   return Promise.all(
@@ -376,12 +421,64 @@ async function encodeAccounts(accounts: Account[]): Promise<StoredAccount[]> {
       const { id, ...secretFields } = account;
       return {
         id,
-        v: meta.vaultId,
+        v: vaultId,
         fp: await fingerprintSecret(fingerprintKey, account.secret),
         enc: await encryptJson(secretFields, dataKey),
       };
     })
   );
+}
+
+/**
+ * Whether a record is something this module can reason about at all: an
+ * account with a secret in it, or ciphertext with the fingerprint the merge
+ * compares it by.
+ *
+ * Anything else — a `null`, a bare string, `{}`, a secret that is a number —
+ * used to be taken at its word. A single `null` in local or in one sync chunk
+ * made every read throw (the merge asked it for its secret), and after the
+ * retries that is "Failed to load accounts" on every device sharing the sync
+ * area, permanently, with the data still on disk. A string or an empty object
+ * rendered as a card with no id, which no edit or delete could address.
+ *
+ * Such a record is quarantined, like ciphertext from another vault: never
+ * shown, never counted as an account, and written back untouched by every
+ * save, because "this cannot be read" is not the same as "this is worthless".
+ */
+/** As isUsableRecord for decrypted fields — a plain answer, not a type guard. */
+function opensToAccount(fields: unknown): boolean {
+  return isUsableRecord(fields) && !isEncryptedAccount(fields);
+}
+
+function isUsableRecord(record: unknown): record is StoredAccount {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return false;
+  const fields = record as Record<string, unknown>;
+  if (typeof fields.enc === 'string') return typeof fields.fp === 'string' && fields.fp !== '';
+  return typeof fields.secret === 'string' && secretKey(fields.secret) !== '';
+}
+
+/**
+ * Text fields as strings, whatever is on disk.
+ *
+ * `issuer: null` is in real stores — the .txt export already had to learn to
+ * survive it (see buildOTPAuthURL) — and a backup is a file a person can edit.
+ * Every surface that searches or matches calls `.toLowerCase()` on these: the
+ * popup's search box, the site suggestion, quick fill. One such account made
+ * typing a single letter blank the popup. Mending it here, once, on the way out
+ * of storage, is what lets everything above treat Account as the type says.
+ */
+function withTextFields(account: Account): Account {
+  const text = (value: unknown): string | null =>
+    typeof value === 'string' ? value : typeof value === 'number' ? String(value) : null;
+
+  const issuer = text(account.issuer) ?? '';
+  const name = text(account.name) ?? issuer;
+  const groupOk = account.group === undefined || typeof account.group === 'string';
+  if (name === account.name && issuer === account.issuer && groupOk) return account;
+
+  const mended: Account = { ...account, name, issuer };
+  if (typeof mended.group !== 'string') delete mended.group;
+  return mended;
 }
 
 /**
@@ -435,6 +532,31 @@ function dedupeBySecret(accounts: Account[]): Account[] {
 export async function decodeRecords(
   stored: StoredAccount[]
 ): Promise<{ accounts: Account[]; held: StoredAccount[] }> {
+  const { accounts, held } = await decodeDetailed(stored);
+  return { accounts, held };
+}
+
+interface Decoded {
+  accounts: Account[];
+  held: StoredAccount[];
+  /**
+   * The normalised seed behind each record that could be read — including the
+   * ones dedupeBySecret folded away, which is how a delete finds the hidden
+   * copies of the account it removes.
+   */
+  seedOf: (record: StoredAccount) => string | undefined;
+}
+
+async function decodeDetailed(input: StoredAccount[]): Promise<Decoded> {
+  const [stored, junk] = partition(input as unknown[], isUsableRecord) as [StoredAccount[], StoredAccount[]];
+  const seeds = new Map<StoredAccount, string>();
+  const seedOf = (record: StoredAccount) => seeds.get(record);
+  const finish = (decoded: Account[], held: StoredAccount[]): Decoded => ({
+    accounts: dedupeBySecret(decoded).map(withTextFields),
+    held: [...held, ...junk],
+    seedOf,
+  });
+
   const meta = await getVaultMeta();
 
   // The lock check is unconditional and independent of what the records look
@@ -445,7 +567,7 @@ export async function decodeRecords(
   if (meta) await requireKeys();
 
   if (stored.length === 0) {
-    return { accounts: [], held: [] };
+    return finish([], []);
   }
 
   if (!meta) {
@@ -453,7 +575,8 @@ export async function decodeRecords(
     // exists. It cannot be read, but it must not be deleted either — the user
     // may still be able to restore the vault on another device.
     const [encrypted, cleartext] = partition(stored, isEncryptedAccount);
-    return { accounts: dedupeBySecret(cleartext as Account[]), held: encrypted };
+    for (const record of cleartext as Account[]) seeds.set(record, secretKey(record.secret));
+    return finish(cleartext as Account[], encrypted);
   }
 
   const { dataKey } = await requireKeys();
@@ -462,6 +585,7 @@ export async function decodeRecords(
 
   for (const record of stored) {
     if (!isEncryptedAccount(record)) {
+      seeds.set(record, secretKey(record.secret));
       decoded.push(record);
       continue;
     }
@@ -474,6 +598,10 @@ export async function decodeRecords(
 
     try {
       const fields = await decryptJson<Omit<Account, 'id'>>(record.enc, dataKey);
+      // Ciphertext that opens to something with no secret in it is as useless
+      // to the list as a `null` would be, and as worth keeping.
+      if (!opensToAccount(fields)) throw new Error('Decrypted record has no secret');
+      seeds.set(record, secretKey(fields.secret));
       decoded.push({ id: record.id, ...fields });
     } catch (error) {
       // Quarantine rather than drop. Dropping was worse than it looked: the
@@ -485,16 +613,20 @@ export async function decodeRecords(
     }
   }
 
-  return { accounts: dedupeBySecret(decoded), held };
+  return finish(decoded, held);
 }
 
 /**
  * Decode what is on disk, remembering the records that could not be read.
  */
 export async function decodeAccounts(stored: StoredAccount[]): Promise<Account[]> {
-  const { accounts, held } = await decodeRecords(stored);
-  quarantined = held;
-  return accounts;
+  return (await decodeHeld(stored)).accounts;
+}
+
+async function decodeHeld(stored: StoredAccount[]): Promise<Decoded> {
+  const decoded = await decodeDetailed(stored);
+  quarantined = decoded.held;
+  return decoded;
 }
 
 function partition<T>(items: T[], predicate: (item: T) => boolean): [T[], T[]] {
@@ -526,24 +658,79 @@ function sameAccounts(a: Account[], b: Account[]): boolean {
   return canonical(a) === canonical(b);
 }
 
-/** Merge identity: the fingerprint when encrypted, the raw secret otherwise. */
-function identityOf(record: StoredAccount): string {
-  return isEncryptedAccount(record) ? record.fp : record.secret;
-}
-
 /**
  * What the local/sync merge compares by.
  *
- * Not identityOf: that is the raw secret, while decodeRecords collapses
- * duplicates by the normalised one. A sync copy spelling a seed differently
- * (lowercase, spaced, padded) passed the merge as a new account, was persisted
- * to local, then collapsed again on decode — so the store held more records
- * than the UI could see, and saveAccounts' shrink guard refused every add from
- * then on. identityOf itself stays raw: tombstones already on disk are hashes
- * of it.
+ * Not the raw secret: decodeRecords collapses duplicates by the normalised one.
+ * A sync copy spelling a seed differently (lowercase, spaced, padded) passed
+ * the merge as a new account, was persisted to local, then collapsed again on
+ * decode — so the store held more records than the UI could see, and
+ * saveAccounts' shrink guard refused every add from then on. Tombstones still
+ * carry the raw spelling too; see tombstoneIdentities.
+ *
+ * A quarantined non-record is compared by its whole serialised self, so the
+ * same `null` arriving from sync on every read is merged once, not every time.
  */
 function mergeKey(record: StoredAccount): string {
+  if (!isUsableRecord(record)) return `unusable:${JSON.stringify(record) ?? String(record)}`;
   return isEncryptedAccount(record) ? record.fp : secretKey(record.secret);
+}
+
+/**
+ * Every identity a deletion is recorded under, and a re-add forgets.
+ *
+ * Both spellings of a cleartext seed. Markers written before 1.13.4 hash the
+ * raw secret, so the raw one has to keep being checked; but the merge compares
+ * normalised keys, and a sync copy spelling the deleted seed differently — an
+ * older device's `jbsw y3dp…` for this one's `JBSWY3DP…` — matched no marker
+ * and came straight back after every delete.
+ */
+function tombstoneIdentities(record: StoredAccount): string[] {
+  if (!isUsableRecord(record)) return [];
+  if (isEncryptedAccount(record)) return [record.fp];
+  const normalised = secretKey(record.secret);
+  return normalised === record.secret ? [record.secret] : [record.secret, normalised];
+}
+
+/**
+ * Give every readable record an id of its own.
+ *
+ * `deleteAccount` filters by id and `reorderAccounts` looks accounts up by it,
+ * so two records sharing one — a hand-edited backup, an older import, two
+ * devices that each minted "imported-<same ms>-0" — meant deleting either card
+ * deleted both, and a drag wrote one of them twice and lost the other. A record
+ * with no id at all rendered as a card nothing could address. The first holder
+ * of an id keeps it; the rest get a suffix, deterministic so that two contexts
+ * repairing the same list agree on the result.
+ */
+function repairIds(records: StoredAccount[]): { records: StoredAccount[]; changed: boolean } {
+  const idOf = (record: StoredAccount): unknown => (record as { id?: unknown }).id;
+  const taken = new Set<string>();
+  for (const record of records) {
+    const id = record && typeof record === 'object' ? idOf(record) : undefined;
+    if (typeof id === 'string') taken.add(id);
+  }
+
+  const seen = new Set<string>();
+  let changed = false;
+  const repaired = records.map(record => {
+    if (!isUsableRecord(record)) return record;
+    const id = idOf(record);
+    if (typeof id === 'string' && id !== '' && !seen.has(id)) {
+      seen.add(id);
+      return record;
+    }
+
+    const base = typeof id === 'string' && id !== '' ? id : 'account';
+    let candidate = `${base}-2`;
+    for (let n = 3; taken.has(candidate) || seen.has(candidate); n++) candidate = `${base}-${n}`;
+    seen.add(candidate);
+    taken.add(candidate);
+    changed = true;
+    return { ...record, id: candidate };
+  });
+
+  return { records: repaired, changed };
 }
 
 // Local is the primary store (10MB quota, fast, reliable).
@@ -555,55 +742,118 @@ function mergeKey(record: StoredAccount): string {
 // 2) accounts in local but not sync (sync write was dropped by quota) survive.
 // Deletions don't propagate cross-device — acceptable for a 2FA app where
 // keeping a stale code is far better than losing one.
+//
+// A device with sync switched off does not read the sync area at all. It used
+// to merge it regardless, so the setting stopped this machine's accounts going
+// up but went on pulling every other machine's down — and, since each read
+// persisted what it merged, keeping them here for good.
 export async function getStoredAccounts(): Promise<StoredAccount[]> {
-  return retryOperation(async () => {
-    const localResult = await chrome.storage.local.get(STORAGE_KEY);
-    const localAccounts: StoredAccount[] = localResult[STORAGE_KEY] || [];
+  // Read without the lock: most reads find nothing to write, and every open
+  // surface reloads on every storage event. Only a read that would change what
+  // is on disk takes the lock, and then decides again from a fresh read.
+  let read = await retryOperation(() => readStored(false));
+  if (read.dirty) {
+    read = await withAccountsLock(() => retryOperation(() => readStored(true)));
+  }
+  if (read.syncReadable) await replayHeldSyncPush();
+  return read.records;
+}
 
-    let syncAccounts: StoredAccount[] = [];
-    let syncReadable = false;
+interface StoredRead {
+  records: StoredAccount[];
+  /** The stamp that describes `records` — after the merge's own write, if any. */
+  revision: number;
+  /** The read would change local: a merge to persist, ids to repair. */
+  dirty: boolean;
+  syncReadable: boolean;
+}
+
+/**
+ * Local, merged with sync, with ids repaired.
+ *
+ * `persist` may only be true while holding the accounts lock: it writes the
+ * merged list back, and an unlocked write here is exactly the lost update the
+ * lock exists to prevent — a surface reloading on a storage event wrote its
+ * merge over an account another surface had added a moment before.
+ */
+async function readStored(persist: boolean): Promise<StoredRead> {
+  const localResult = await chrome.storage.local.get([STORAGE_KEY, REVISION_KEY]);
+  const rawLocal = localResult[STORAGE_KEY];
+  // Something that is not a list is kept as one quarantined entry rather than
+  // read as "no accounts" — which the next save would have written over.
+  const localAccounts: StoredAccount[] =
+    Array.isArray(rawLocal) ? rawLocal : rawLocal == null ? [] : [rawLocal];
+  const revision = toRevision(localResult[REVISION_KEY]);
+
+  let syncAccounts: StoredAccount[] = [];
+  let syncReadable = false;
+  if (await isSyncEnabled()) {
     try {
       syncAccounts = await readSyncRecords();
       syncReadable = true;
     } catch (syncError) {
       console.warn('Sync storage unavailable:', syncError);
     }
+  }
 
-    // Only a read that actually succeeded says anything about whether the area
-    // is populated; a thrown read says nothing and must not start the clock.
-    if (syncReadable) {
-      await noteSyncRead(syncAccounts.length, localAccounts.length);
-    }
+  // Only a read that actually succeeded says anything about whether the area
+  // is populated; a thrown read says nothing and must not start the clock.
+  if (syncReadable) {
+    await noteSyncRead(syncAccounts.length, localAccounts.length);
+  }
 
-    const merged = await mergeSyncIntoLocal(localAccounts, syncAccounts);
+  const additions = await syncAdditions(localAccounts, syncAccounts);
+  const preview = repairIds([...localAccounts, ...additions]);
+  const dirty = additions.length > 0 || preview.changed;
 
-    // The replay is a forced push that prunes every chunk beyond what it
-    // writes, so it has to carry the merged list. Replaying local alone cut the
-    // cloud copy to this device's accounts at the exact moment another
-    // device's arrived — a fresh install with one new account, meeting thirty
-    // from the old machine, left one in sync.
-    if (syncReadable) {
-      await replayHeldSyncPush(merged);
-    }
+  if (!dirty || !persist) {
+    return { records: preview.records, revision, dirty, syncReadable };
+  }
 
-    return merged;
-  });
+  // Cleartext arriving under a vault is sealed before it lands, or held back in
+  // sync until this device is unlocked. Persisting it as it came meant a live
+  // vault with readable secrets on disk beneath it — pushed back up to sync from
+  // there on every save.
+  const arriving = await sealArrivals(additions);
+  const { records, changed } = repairIds([...localAccounts, ...arriving]);
+  if (arriving.length === 0 && !changed) {
+    return { records, revision, dirty: false, syncReadable };
+  }
+
+  // Persist merge so subsequent reads are stable and the auto-backup reflects
+  // the full set — with the revision, in the same write, like every write.
+  try {
+    await chrome.storage.local.set({ [STORAGE_KEY]: records, [REVISION_KEY]: revision + 1 });
+    return { records, revision: revision + 1, dirty: false, syncReadable };
+  } catch {
+    return { records, revision, dirty: false, syncReadable };
+  }
 }
 
-async function mergeSyncIntoLocal(
+/** The records in local now, exactly as they are. */
+async function readLocalRecords(): Promise<StoredAccount[]> {
+  const raw = (await chrome.storage.local.get(STORAGE_KEY))[STORAGE_KEY];
+  return Array.isArray(raw) ? raw : raw == null ? [] : [raw];
+}
+
+/** What sync holds that local does not, minus what this device deleted. */
+async function syncAdditions(
   localAccounts: StoredAccount[],
   syncAccounts: StoredAccount[]
 ): Promise<StoredAccount[]> {
-  if (syncAccounts.length === 0) {
-    return localAccounts;
-  }
+  if (syncAccounts.length === 0) return [];
 
   const seen = new Set(localAccounts.map(mergeKey));
-  const candidates = syncAccounts.filter(acc => !seen.has(mergeKey(acc)));
-
-  if (candidates.length === 0) {
-    return localAccounts;
+  const candidates: StoredAccount[] = [];
+  for (const acc of syncAccounts) {
+    const key = mergeKey(acc);
+    if (seen.has(key)) continue;
+    // Two chunks carrying one record — a push that died between writing the
+    // new chunks and pruning the old ones — is one record, not two.
+    seen.add(key);
+    candidates.push(acc);
   }
+  if (candidates.length === 0) return [];
 
   // "In sync but not local" is usually another device's account — but it is
   // also exactly what a record this device just deleted looks like, until the
@@ -612,18 +862,35 @@ async function mergeSyncIntoLocal(
   const wasDeletedHere = await deletedHere();
   const additions: StoredAccount[] = [];
   for (const acc of candidates) {
-    if (!(await wasDeletedHere(identityOf(acc)))) additions.push(acc);
+    let deleted = false;
+    for (const identity of tombstoneIdentities(acc)) {
+      if (await wasDeletedHere(identity)) deleted = true;
+    }
+    if (!deleted) additions.push(acc);
   }
+  return additions;
+}
 
-  if (additions.length === 0) {
-    return localAccounts;
-  }
+/**
+ * Encrypt the cleartext accounts arriving from sync, if a vault is on.
+ *
+ * Locked, they are left out: they are still in sync, so the first read after
+ * the unlock merges them again and seals them then. Only arrivals — this
+ * device's own records are never dropped here, whatever shape they are in.
+ */
+async function sealArrivals(additions: StoredAccount[]): Promise<StoredAccount[]> {
+  const isCleartext = (record: StoredAccount) => isUsableRecord(record) && !isEncryptedAccount(record);
+  if (!additions.some(isCleartext)) return additions;
 
-  const merged = [...localAccounts, ...additions];
-  // Persist merge so subsequent reads are stable and the auto-backup
-  // reflects the full set.
-  await chrome.storage.local.set({ [STORAGE_KEY]: merged }).catch(() => {});
-  return merged;
+  const meta = await getVaultMeta();
+  if (!meta) return additions;
+  if (!(await getMasterKeyBytes())) return additions.filter(record => !isCleartext(record));
+
+  return Promise.all(
+    additions.map(async record =>
+      isCleartext(record) ? (await encodeAccounts([withTextFields(record as Account)], meta))[0] : record
+    )
+  );
 }
 
 /**
@@ -666,41 +933,117 @@ async function visibleCount(stored: StoredAccount[]): Promise<number> {
   return accounts.length + held.length;
 }
 
-export async function saveAccounts(accounts: Account[], options: SaveOptions = {}): Promise<void> {
-  const records = [...(await encodeAccounts(accounts)), ...quarantined];
-
-  // Last line of defence against the whole class of bugs where a partial read
-  // becomes a destructive write. Deleting is the only operation that may shrink
-  // the store, and it says so explicitly.
-  if (!options.allowShrink) {
-    const existing = (await chrome.storage.local.get(STORAGE_KEY))[STORAGE_KEY];
-    const existingCount = Array.isArray(existing) ? await visibleCount(existing) : 0;
-    if (records.length < existingCount) {
-      throw new Error(
-        `Refusing to save ${records.length} accounts over ${existingCount} already stored`
-      );
-    }
+/** Another writer got in between this one's read and its write. */
+class WriteConflict extends Error {
+  constructor() {
+    super('The account list changed while this change was being saved');
+    this.name = 'WriteConflict';
   }
+}
 
-  // The revision moves with the records, in the same write, so a reader can
-  // never see a list newer than the stamp that describes it. See mutateAccounts.
-  const data = { [STORAGE_KEY]: records, [REVISION_KEY]: (await readRevision()) + 1 };
+export async function saveAccounts(accounts: Account[], options: SaveOptions = {}): Promise<void> {
+  await withAccountsLock(() => writeAccounts(accounts, options));
+  await pushAfterSave(options);
+}
 
-  // Local is the source of truth — must succeed or we throw
-  await retryOperation(() => chrome.storage.local.set(data));
+/**
+ * The write itself. Callers hold the accounts lock.
+ *
+ * Everything the write depends on is decided from ONE read taken after the
+ * slow part: the records it replaces (for the shrink guard and for which
+ * identities are new), the revision, and the vault metadata. Deciding from
+ * values read before the encryption is how a save encoded as cleartext landed
+ * on top of a vault switched on meanwhile, and how ciphertext landed after the
+ * vault was switched off — with its key about to be deleted.
+ */
+async function writeAccounts(
+  accounts: Account[],
+  options: SaveOptions & { expectRevision?: number; held?: StoredAccount[] } = {}
+): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    const meta = await getVaultMeta();
+    const records = [...(await encodeAccounts(accounts, meta)), ...(options.held ?? quarantined)];
 
-  // An account that is present again is one the user wants back — a re-scanned
-  // QR, a restored backup — so whatever marked it deleted has to go. Doing it
-  // here covers add, import and restore in one place, instead of leaving each
-  // path to remember.
-  await forgetDeleted(records.map(identityOf)).catch(() => {});
+    const current = await chrome.storage.local.get([STORAGE_KEY, REVISION_KEY, VAULT_META_KEY]);
+    const onDisk = (current[VAULT_META_KEY] as VaultMeta | undefined)?.vaultId ?? null;
+    if (onDisk !== (meta?.vaultId ?? null)) {
+      // Encode again against the vault that is actually there. If it is locked
+      // that throws VaultLockedError — the right answer: nothing in the clear
+      // goes under a vault, and nothing goes out under a key that is gone.
+      if (attempt < 2) continue;
+      throw new Error('Password protection changed while saving — nothing was written');
+    }
 
+    const revision = toRevision(current[REVISION_KEY]);
+    if (options.expectRevision !== undefined && revision !== options.expectRevision) {
+      throw new WriteConflict();
+    }
+
+    const existing: StoredAccount[] = Array.isArray(current[STORAGE_KEY]) ? current[STORAGE_KEY] : [];
+
+    // Last line of defence against the whole class of bugs where a partial read
+    // becomes a destructive write. Deleting is the only operation that may shrink
+    // the store, and it says so explicitly.
+    if (!options.allowShrink) {
+      const existingCount = await visibleCount(existing);
+      if (records.length < existingCount) {
+        throw new Error(
+          `Refusing to save ${records.length} accounts over ${existingCount} already stored`
+        );
+      }
+    }
+
+    // The revision moves with the records, in the same write, so a reader can
+    // never see a list newer than the stamp that describes it.
+    // Local is the source of truth — must succeed or we throw.
+    await retryOperation(() =>
+      chrome.storage.local.set({ [STORAGE_KEY]: records, [REVISION_KEY]: revision + 1 })
+    );
+
+    // An account that is present again is one the user wants back — a re-scanned
+    // QR, a restored backup — so whatever marked it deleted has to go. Doing it
+    // here covers add, import and restore in one place.
+    //
+    // Only for what this write ADDS. It used to forget every identity in the
+    // list, and a writer that had read before another surface's delete wrote
+    // the deleted record back AND wiped the marker that would have kept its sync
+    // copy out: deleted, back, and staying back.
+    const before = new Set(existing.map(mergeKey));
+    const arriving = records.filter(record => !before.has(mergeKey(record)));
+    await forgetDeleted(arriving.flatMap(tombstoneIdentities)).catch(() => {});
+    return;
+  }
+}
+
+/**
+ * Bring sync up to date with local, from a read taken at the moment of pushing.
+ *
+ * Not from the list the save just wrote. Pushes are not awaited by most saves,
+ * so two saves from two surfaces push in whatever order the browser finishes
+ * them, and the older list landing last put a deleted account back in sync and
+ * left a new one out. Under the lock, reading then, the last push to run always
+ * carries the newest list.
+ *
+ * `merge` folds in what sync holds first, for the pushes that are not the tail
+ * of a save — turning sync on, replaying a held push — where sync may carry
+ * other devices' accounts that local has never seen, and a push of local alone
+ * would prune them. A save's own push must not merge: it would put back what
+ * the save just removed.
+ */
+function pushLatest(options: PushOptions & { merge?: boolean } = {}): Promise<void> {
+  return withAccountsLock(async () => {
+    const records = options.merge ? (await readStored(true)).records : await readLocalRecords();
+    await pushToSync(records, options);
+  });
+}
+
+function pushAfterSave(options: SaveOptions): Promise<void> {
   // Sync is best-effort: failures here (e.g. QUOTA_BYTES_PER_ITEM exceeded
   // with many accounts) must not block the save or be retried.
-  const push = pushToSync(records).catch(syncError => {
+  const push = pushLatest().catch(syncError => {
     console.warn('Sync storage failed (local save succeeded):', syncError);
   });
-  if (options.awaitSync) await push;
+  return options.awaitSync ? push : Promise.resolve();
 }
 
 /**
@@ -708,84 +1051,89 @@ export async function saveAccounts(accounts: Account[], options: SaveOptions = {
  *
  * Every mutation here is a read-modify-write over one array, and until 1.13.0
  * there was only ever one surface open to do it from: an action popup dies the
- * moment it loses focus. This release adds a floating window and a side panel
+ * moment it loses focus. That release added a floating window and a side panel
  * that stay open for hours, alongside the scanner tab and the passkey page — so
  * two contexts reading the same list, each adding one account, each writing
- * what it computed, is now an ordinary sequence rather than a thought
+ * what it computed, became an ordinary sequence rather than a thought
  * experiment. The later write wins and the earlier account is gone, with a
  * cheerful "Account added" on both screens. The length guard in saveAccounts
  * does not catch it: eleven accounts written over eleven is not a shrink.
  *
- * Two things close it.
+ * 1.13.0 answered with a per-context queue plus a revision stamp compared
+ * before the save. That narrowed the window without closing it: between the
+ * comparison and the write sat the encryption, the shrink guard's read and the
+ * revision's own read, and with real storage latency another surface's write
+ * landed there constantly — a delete racing an add resurrected the deleted
+ * account 48 times in 50.
  *
- * First, one writer at a time within this context, and the read happens INSIDE
- * that turn — so two handlers in one popup can no longer interleave at all, and
- * a mutation never computes from a list it fetched before the previous write.
- *
- * Second, a revision counter for the contexts this queue cannot see. Every
- * write stamps one; a mutation records what it read and, if the stamp moved
- * under it, runs `apply` again on the fresh list. The mutations are all pure
- * functions of the list, so re-running is exactly re-deciding on current facts.
- * This is not a lock — chrome.storage offers no compare-and-swap — but it cuts
- * the window from "however long the user spent in the dialog" down to a single
- * storage round trip, and a write that still slips through is caught on the
- * next read rather than becoming permanent.
+ * Now the whole read-decide-write runs under the cross-context accounts lock
+ * (write-lock.ts). The revision stays, checked in the write's own read, for the
+ * one case the lock cannot cover: a browser without Web Locks, where the
+ * fallback only serialises this context.
  *
  * The counter lives under its own key. 1.12.0 ignores keys it does not know, so
  * a browser rollback reads the account list exactly as before.
  */
 const REVISION_KEY = 'authenticator_accounts_rev';
 
-let writeQueue: Promise<unknown> = Promise.resolve();
-
-async function readRevision(): Promise<number> {
-  try {
-    const value = (await chrome.storage.local.get(REVISION_KEY))[REVISION_KEY];
-    return typeof value === 'number' && Number.isFinite(value) ? value : 0;
-  } catch {
-    // A revision we cannot read is one we cannot compare. Falling back to 0
-    // means the check below never fires, which is the behaviour this function
-    // replaced — never worse than before it existed.
-    return 0;
-  }
+function toRevision(value: unknown): number {
+  // A revision we cannot read is one we cannot compare. Zero means the check
+  // never fires, which is never worse than before the counter existed.
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
+
+type Apply<T> = (
+  accounts: Account[],
+  stored: StoredAccount[],
+  seedOf: (record: StoredAccount) => string | undefined
+) => {
+  /** `null` when there is nothing to change, so nothing is written. */
+  accounts: Account[] | null;
+  result: T;
+};
 
 /**
  * Run `apply` against the current account list and save what it returns.
  *
- * `apply` must be re-runnable: it is called again, on a freshly read list, if
- * another context wrote while this one was deciding.
+ * `apply` must be re-runnable: without Web Locks it is called again, on a
+ * freshly read list, if another context wrote while this one was deciding.
  */
 async function mutateAccounts<T>(
-  apply: (accounts: Account[], stored: StoredAccount[]) => { accounts: Account[]; result: T },
+  apply: Apply<T>,
   options: SaveOptions & { beforeSave?: (result: T) => Promise<void> } = {}
 ): Promise<T> {
-  const run = async (): Promise<T> => {
+  let wrote = false;
+  const outcome = await withAccountsLock(async () => {
     // Three attempts, not one: two is enough for a single competing writer, and
     // the third is for the case where the retry itself is raced. Past that the
     // contention is not something more attempts will fix.
     for (let attempt = 0; ; attempt++) {
-      const before = await readRevision();
       // Both shapes come out of one read. Deleting needs the stored record to
       // work out the identity a stale sync copy will be compared against, and
       // reading that separately would put the race back where it started.
-      const stored = await getStoredAccounts();
-      const { accounts, result } = apply(await decodeAccounts(stored), stored);
-
-      const after = await readRevision();
-      if (after !== before && attempt < 2) continue;
+      const { records: stored, revision } = await retryOperation(() => readStored(true));
+      const decoded = await decodeHeld(stored);
+      const { accounts, result } = apply(decoded.accounts, stored, decoded.seedOf);
+      if (accounts === null) return result;
 
       await options.beforeSave?.(result);
-      await saveAccounts(accounts, options);
+      try {
+        // The held records from THIS read, not the module-wide list: a reload
+        // in this same page, running outside the lock, decodes whatever it read
+        // and replaces that list — possibly with an older one missing a record
+        // this read has just merged in from sync.
+        await writeAccounts(accounts, { ...options, expectRevision: revision, held: decoded.held });
+      } catch (error) {
+        if (error instanceof WriteConflict && attempt < 2) continue;
+        throw error;
+      }
+      wrote = true;
       return result;
     }
-  };
+  });
 
-  // Chained whether or not the previous mutation succeeded — a failed write
-  // must not wedge the queue for the rest of the session.
-  const next = writeQueue.then(run, run);
-  writeQueue = next.catch(() => {});
-  return next;
+  if (wrote) await pushAfterSave(options);
+  return outcome;
 }
 
 /** False when the seed was already here, so nothing was written. */
@@ -802,7 +1150,7 @@ export async function addAccount(account: Account): Promise<boolean> {
     // good under a cheerful "Account added".
     const key = secretKey(account.secret);
     if (accounts.some(existing => secretKey(existing.secret) === key)) {
-      return { accounts, result: false };
+      return { accounts: null, result: false };
     }
     return { accounts: [...accounts, account], result: true };
   });
@@ -827,25 +1175,39 @@ export async function addMultipleAccounts(
 
 export async function reorderAccounts(accountIds: string[]): Promise<void> {
   await mutateAccounts(accounts => {
-    const ordered = accountIds
-      .map(id => accounts.find(acc => acc.id === id))
-      .filter((acc): acc is Account => acc !== undefined);
+    // Picked by object, never twice. Looking each id up with `find` wrote the
+    // first holder of a shared id once per mention and dropped the other
+    // holder: ['c', 'dup', 'dup'] saved one account twice and lost one. Ids are
+    // repaired on read now, but a stale list from React can still name one
+    // twice, and the list must come out a permutation whatever it is told.
+    const picked = new Set<Account>();
+    const ordered: Account[] = [];
+    for (const id of accountIds) {
+      const account = accounts.find(acc => acc.id === id && !picked.has(acc));
+      if (!account) continue;
+      picked.add(account);
+      ordered.push(account);
+    }
 
     // Anything the caller did not mention keeps its place at the end instead of
     // being deleted. The id list comes from React state, which goes stale the
     // moment the scanner tab adds an account — a drag must not cost the user that
     // account.
-    const mentioned = new Set(ordered.map(acc => acc.id));
-    const untouched = accounts.filter(acc => !mentioned.has(acc.id));
+    const untouched = accounts.filter(acc => !picked.has(acc));
 
     return { accounts: [...ordered, ...untouched], result: undefined };
   });
 }
 
-export async function updateAccount(id: string, updates: Partial<Account>): Promise<void> {
-  await mutateAccounts(accounts => {
+/**
+ * False when no account has this id — deleted in another window while the
+ * edit form was open — so nothing was saved and the caller can say so rather
+ * than report a change that went nowhere.
+ */
+export async function updateAccount(id: string, updates: Partial<Account>): Promise<boolean> {
+  return mutateAccounts(accounts => {
     const index = accounts.findIndex(acc => acc.id === id);
-    if (index === -1) return { accounts, result: undefined };
+    if (index === -1) return { accounts: null, result: false };
 
     const merged = { ...accounts[index], ...updates };
 
@@ -859,7 +1221,7 @@ export async function updateAccount(id: string, updates: Partial<Account>): Prom
 
     const next = [...accounts];
     next[index] = merged;
-    return { accounts: next, result: undefined };
+    return { accounts: next, result: true };
   });
 }
 
@@ -867,23 +1229,40 @@ export async function deleteAccount(id: string): Promise<void> {
   // Deleting is the one operation allowed to shrink the store, so the length
   // guard steps aside for it — which is precisely when an account added in
   // another surface has nothing standing between it and being written over.
-  // Going through the queue is what replaces the guard here.
+  // The lock is what replaces the guard here.
   await mutateAccounts(
-    (accounts, stored) => ({
-      accounts: accounts.filter(acc => acc.id !== id),
-      // The identity is taken from the stored record rather than recomputed
-      // from the decoded account, so it matches exactly what the merge will
-      // compare a stale sync copy against — the fingerprint when a vault is on,
-      // the secret when it is not.
-      result: stored.filter(record => record.id === id).map(identityOf),
-    }),
+    (accounts, stored, seedOf) => {
+      const target = accounts.find(acc => acc.id === id);
+      const seed = target ? secretKey(target.secret) : undefined;
+      if (!target && !stored.some(record => isUsableRecord(record) && record.id === id)) {
+        // Already gone — deleted in another window. Nothing to write.
+        return { accounts: null, result: [] };
+      }
+      return {
+        accounts: accounts.filter(acc => acc.id !== id),
+        // The identities are taken from the stored records rather than
+        // recomputed from the decoded account, so they match exactly what the
+        // merge will compare a stale sync copy against — the fingerprint when a
+        // vault is on, the secret when it is not.
+        //
+        // Every record of the same seed, not only the one with this id. The
+        // list folds duplicates into one card, so deleting that card drops the
+        // hidden copies from local too — and their sync copies, carrying their
+        // own spelling or their own fingerprint, matched no marker and put the
+        // account straight back.
+        result: stored
+          .filter(isUsableRecord)
+          .filter(record => record.id === id || (seed !== undefined && seedOf(record) === seed))
+          .flatMap(tombstoneIdentities),
+      };
+    },
     {
       allowShrink: true,
       awaitSync: true,
       // Before the write, not after it. The local write fires onChanged, and
       // since 1.13.0 every open surface reloads on it — a read that sees the
       // stale sync copy and no tombstone yet merges the account straight back.
-      // saveAccounts only forgets identities still present, so an early marker
+      // saveAccounts only forgets identities it adds, so an early marker
       // survives the save it precedes.
       beforeSave: identities => markDeleted(identities).catch(() => {}),
     }
@@ -1058,7 +1437,10 @@ function newAccountsFrom(
   // Ids from the stored records too, not only the decoded ones: a record this
   // device cannot read still occupies its id, and it is invisible to the list
   // the caller sees.
-  const usedIds = new Set([...existingAccounts.map(acc => acc.id), ...stored.map(record => record.id)]);
+  const usedIds = new Set([
+    ...existingAccounts.map(acc => acc.id),
+    ...stored.filter(isUsableRecord).map(record => record.id),
+  ]);
   const additions: Account[] = [];
 
   for (const account of incoming) {
@@ -1148,7 +1530,7 @@ export async function prepareVault(password: string): Promise<PreparedVault> {
   // round-trip is discovered before the user is ever shown a recovery code.
   await encryptVerified(plaintextAccounts);
 
-  const commit = async (): Promise<void> => {
+  const commitLocked = async (): Promise<void> => {
     // Asked again, not only in `prepare`.
     //
     // The check up there runs before a screen the user is expected to linger
@@ -1172,11 +1554,12 @@ export async function prepareVault(password: string): Promise<PreparedVault> {
     //
     // This must happen before the metadata is written: with vault_meta on disk
     // and no key unlocked yet, this same read throws VaultLockedError.
-    const currentAccounts = await getAccounts();
+    const decodedNow = await decodeHeld((await readStored(true)).records);
+    const currentAccounts = decodedNow.accounts;
     // Captured by the read above: ciphertext from another vault, or records that
     // failed to decrypt. Every other write path carries them through untouched
     // (see saveAccounts); this one used to be the sole exception and erased them.
-    const held = [...quarantined];
+    const held = [...decodedNow.held];
 
     const encrypted = await encryptVerified(currentAccounts);
     const records: StoredAccount[] = [...encrypted, ...held];
@@ -1205,7 +1588,7 @@ export async function prepareVault(password: string): Promise<PreparedVault> {
         // ciphertext on disk with its key deleted: zero accounts, nothing left
         // to open them, and no second copy for anyone who has sync switched off.
         try {
-          await retryOperation(() => chrome.storage.local.set({ [STORAGE_KEY]: previousRecords }));
+          await retryOperation(() => writeStamped(previousRecords));
         } catch (err) {
           console.error(
             'Vault rollback could not restore local accounts; keeping vault_meta so the ' +
@@ -1214,7 +1597,7 @@ export async function prepareVault(password: string): Promise<PreparedVault> {
           );
           return;
         }
-        await pushToSync(previousRecords, { force: true }).catch(() => {});
+        await pushToSync(previousRecords, { force: true, cleartextAllowed: true }).catch(() => {});
       }
       if (restoringCiphertext) {
         console.error(
@@ -1232,7 +1615,7 @@ export async function prepareVault(password: string): Promise<PreparedVault> {
     await saveVaultMeta(meta);
 
     try {
-      await retryOperation(() => chrome.storage.local.set({ [STORAGE_KEY]: records }));
+      await retryOperation(() => writeStamped(records));
 
       // Awaited, unlike a plain best-effort push: if the encrypted copy cannot
       // reach sync we must remove the cleartext that is sitting there, or the
@@ -1278,7 +1661,19 @@ export async function prepareVault(password: string): Promise<PreparedVault> {
     await chrome.storage.local.remove([USAGE_HISTORY_KEY, ACTIVE_GROUP_KEY]).catch(() => {});
   };
 
+  // The whole commit under the accounts lock. Unlocked, an add in the scanner
+  // tab read the list before the ciphertext landed and wrote its cleartext
+  // version after it: a live vault with every secret readable beneath it, and
+  // pushed to sync from there.
+  const commit = (): Promise<void> => withAccountsLock(commitLocked);
+
   return { recoveryCode, commit };
+}
+
+/** Replace local's records, moving the revision in the same write. Lock held. */
+async function writeStamped(records: unknown): Promise<void> {
+  const revision = toRevision((await chrome.storage.local.get(REVISION_KEY))[REVISION_KEY]);
+  await chrome.storage.local.set({ [STORAGE_KEY]: records, [REVISION_KEY]: revision + 1 });
 }
 
 /**
@@ -1287,59 +1682,102 @@ export async function prepareVault(password: string): Promise<PreparedVault> {
  * never be one stray click away.
  */
 export async function disableVault(password: string): Promise<void> {
+  const verifiedAgainst = await getVaultMeta();
   const masterKeyBytes = await verifyPassword(password);
   const { dataKey } = await deriveKeys(masterKeyBytes);
-  const meta = await getVaultMeta();
 
-  const stored = await getStoredAccounts();
-  const accounts: Account[] = [];
-  for (const record of stored) {
-    if (!isEncryptedAccount(record)) {
-      accounts.push(record);
-      continue;
+  /** Every record in the clear, or a throw with nothing written. */
+  const openAll = async (records: StoredAccount[], vaultId: string): Promise<StoredAccount[]> => {
+    const accounts: Account[] = [];
+    const unusable: StoredAccount[] = [];
+    for (const record of records) {
+      if (!isUsableRecord(record)) {
+        // Quarantined junk is not ciphertext of this vault; it goes through
+        // as it is, like every other write carries it.
+        unusable.push(record);
+        continue;
+      }
+      if (!isEncryptedAccount(record)) {
+        accounts.push(record);
+        continue;
+      }
+      if (!belongsToVault(record, vaultId)) {
+        // A record from some other vault cannot be decrypted with this key.
+        // Aborting is the only safe answer: writing the rest out would silently
+        // drop it, and this is the one operation that rewrites the whole store.
+        throw new Error('Some records belong to a different vault — nothing was changed');
+      }
+      const fields = await decryptJson<Omit<Account, 'id'>>(record.enc, dataKey);
+      if (!opensToAccount(fields)) throw new Error('A record could not be opened — nothing was changed');
+      accounts.push({ id: record.id, ...fields });
     }
-    if (!belongsToVault(record, meta?.vaultId)) {
-      // A record from some other vault cannot be decrypted with this key.
-      // Aborting is the only safe answer: writing the rest out would silently
-      // drop it, and this is the one operation that rewrites the whole store.
-      throw new Error('Some records belong to a different vault — nothing was changed');
+
+    // Deduplicate before writing: a cleartext duplicate that arrived from an
+    // older device via sync would otherwise be baked into the cleartext store,
+    // where nothing downstream re-checks it.
+    return [...dedupeBySecret(accounts), ...unusable];
+  };
+
+  // Under the accounts lock, start to finish. Unlocked, an add in another
+  // window encoded its list while vault_meta still existed, wrote that
+  // ciphertext after this function's cleartext, and then clearVaultMeta below
+  // deleted the only key it could be opened with: every account unreadable by
+  // the password and by the recovery code alike.
+  await withAccountsLock(async () => {
+    const meta = await getVaultMeta();
+    // Switched off in another window while the password was being checked:
+    // what this call was asked to do is done.
+    if (!meta) return;
+    if (meta.vaultId !== verifiedAgainst?.vaultId) {
+      throw new Error('Password protection was changed somewhere else — nothing was changed');
     }
-    const fields = await decryptJson<Omit<Account, 'id'>>(record.enc, dataKey);
-    accounts.push({ id: record.id, ...fields });
-  }
 
-  // Deduplicate before writing: a cleartext duplicate that arrived from an
-  // older device via sync would otherwise be baked into the cleartext store,
-  // where nothing downstream re-checks it.
-  const unique = dedupeBySecret(accounts);
+    const unique = await openAll((await readStored(true)).records, meta.vaultId);
+    await retryOperation(() => writeStamped(unique));
 
-  await retryOperation(() => chrome.storage.local.set({ [STORAGE_KEY]: unique }));
+    // Awaited: leftover ciphertext in sync would be merged back into local by
+    // the next read and, with no vault left to open it, would brick every code
+    // path.
+    try {
+      await pushToSync(unique, { force: true, cleartextAllowed: true });
+    } catch {
+      await chrome.storage.sync.remove(await syncKeysInUse()).catch(() => {});
+    }
 
-  // Awaited: leftover ciphertext in sync would be merged back into local by the
-  // next read and, with no vault left to open it, would brick every code path.
-  try {
-    await pushToSync(unique, { force: true });
-  } catch {
-    await chrome.storage.sync.remove(await syncKeysInUse()).catch(() => {});
-  }
+    // Existing snapshots are ciphertext that nothing will be able to open once
+    // the metadata is gone, so replace them with a readable one.
+    //
+    // Best-effort, and that matters: IndexedDB is unavailable on a profile with
+    // site data blocked, in some incognito configurations, and on a corrupt or
+    // full profile. Letting it throw here skipped the lines below, so the
+    // secrets had already been written to local AND force-pushed to sync in the
+    // clear while vault_meta survived — the app still showed the lock screen,
+    // the caller reported "Incorrect password", and the user retried believing
+    // nothing had happened. Stale snapshots are a far smaller problem than that,
+    // and the next successful save replaces them anyway.
+    await replaceAllBackups(unique).catch(error => {
+      console.error('Could not replace the encrypted snapshots while turning the vault off:', error);
+    });
 
-  // Existing snapshots are ciphertext that nothing will be able to open once
-  // the metadata is gone, so replace them with a readable one.
-  //
-  // Best-effort, and that matters: IndexedDB is unavailable on a profile with
-  // site data blocked, in some incognito configurations, and on a corrupt or
-  // full profile. Letting it throw here skipped the two lines below, so the
-  // secrets had already been written to local AND force-pushed to sync in the
-  // clear while vault_meta survived — the app still showed the lock screen,
-  // the caller reported "Incorrect password", and the user retried believing
-  // nothing had happened. Stale snapshots are a far smaller problem than that,
-  // and the next successful save replaces them anyway.
-  await replaceAllBackups(unique).catch(error => {
-    console.error('Could not replace the encrypted snapshots while turning the vault off:', error);
+    // The metadata is the only key this vault's ciphertext will ever have, so
+    // it goes only once local provably holds none. Every writer in this
+    // extension waits for the lock, but a record written by anything that does
+    // not — an older build mid-update, a browser without Web Locks — would be
+    // bricked by the line below, and checking costs one read.
+    for (let pass = 0; ; pass++) {
+      const now = await readLocalRecords();
+      const stragglers = now.some(
+        record => isUsableRecord(record) && isEncryptedAccount(record) && belongsToVault(record, meta.vaultId)
+      );
+      if (!stragglers) break;
+      if (pass === 2) throw new Error('Accounts kept arriving encrypted — password protection stays on');
+      const opened = await openAll(now, meta.vaultId);
+      await retryOperation(() => writeStamped(opened));
+    }
+
+    await clearVaultMeta();
   });
 
-  await clearVaultMeta();
   await lock();
 }
-
 export { VaultLockedError };

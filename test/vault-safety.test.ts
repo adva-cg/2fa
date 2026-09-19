@@ -6,7 +6,7 @@
 // was written beside. None of these lose a byte on the happy path, and each of
 // them ends with accounts nobody can open.
 
-import { areas, check, faults, flush, resetFaults, resetState, scenario, throwsNamed } from './harness';
+import { areas, check, faults, flush, resetFaults, resetState, scenario, storageContext, throwsNamed, withLatency } from './harness';
 
 const PASSWORD = 'correct horse battery staple';
 
@@ -287,4 +287,118 @@ export async function run(): Promise<void> {
   await vault.lock();
   check('as does the password set by the reset', await opens(vault.unlockWithPassword('password after second recovery')));
   await vault.lock();
+
+  // --- another window writing while protection changes state ---------------
+  //
+  // Turning the vault on or off rewrites every record, and until the accounts
+  // lock covered them neither did so under the lock every other writer takes.
+  // These run with real storage latency and the adding window as a separate
+  // module instance, the way the scanner tab sits beside Settings.
+
+  // Off, with an add landing in the middle. The add encoded its list while
+  // vault_meta still existed, wrote that ciphertext after the cleartext, and
+  // then the metadata — the only key to it — was deleted: every account
+  // unreadable by the password and by the recovery code alike.
+  scenario('An account added while protection is being turned off stays readable');
+  await resetState();
+  await storage.saveAccounts([...ACCOUNTS, { ...ACCOUNTS[0], id: 'a3', secret: 'MFRGGZDFMZTWQ2LK' }]);
+  await (await storage.prepareVault(PASSWORD)).commit();
+  await flush();
+  {
+    const scanner = await storageContext('vault-off-scanner');
+    const restore = withLatency(2);
+    let adding: Promise<unknown> | null = null;
+    // Started the moment the cleartext lands — the window between that write
+    // and the metadata being cleared.
+    const onWrite = (changes: any, area: string) => {
+      const next = changes.authenticator_accounts?.newValue;
+      if (area === 'local' && !adding && Array.isArray(next) && next.some(isCleartext)) {
+        adding = scanner.addAccount({ ...ACCOUNTS[0], id: 'n4', secret: 'NBSWY3DPEB3W64TM' }).catch(e => e);
+      }
+    };
+    chrome.storage.onChanged.addListener(onWrite);
+    try {
+      await storage.disableVault(PASSWORD);
+      await adding;
+      await flush();
+    } finally {
+      chrome.storage.onChanged.removeListener(onWrite);
+      restore();
+    }
+    check('the add ran inside the window', adding !== null);
+    check('protection is off', !('vault_meta' in areas.local));
+    check('nothing on disk is ciphertext', storedRecords().every(isCleartext), JSON.stringify(storedRecords().map(r => r.id)));
+    const visible = await storage.getAccounts();
+    check('all four accounts are readable', visible.length === 4, `${visible.length} readable, ${storage.quarantinedCount()} held`);
+  }
+
+  // On, with an add at the same moment. The add read the list before the
+  // ciphertext landed and wrote its cleartext version after it: a live vault
+  // with every secret readable beneath it — and pushed to sync from there.
+  scenario('An account added while protection is being turned on is encrypted with the rest');
+  await resetState();
+  await storage.saveAccounts(ACCOUNTS);
+  await flush();
+  {
+    const scanner = await storageContext('vault-on-scanner');
+    const prepared = await storage.prepareVault(PASSWORD);
+    const restore = withLatency(2);
+    try {
+      await Promise.all([
+        prepared.commit(),
+        scanner.addAccount({ ...ACCOUNTS[0], id: 'n3', secret: 'MFRGGZDFMZTWQ2LK' }).catch(e => e),
+      ]);
+      await flush();
+    } finally {
+      restore();
+    }
+    const synced = Object.keys(areas.sync)
+      .filter(key => key.startsWith('authenticator_accounts'))
+      .flatMap(key => areas.sync[key] as any[]);
+    check('protection is on', 'vault_meta' in areas.local);
+    check('no secret sits in the clear in local', !storedRecords().some(isCleartext), JSON.stringify(storedRecords().map(r => r.id)));
+    check('nor in sync', !synced.some(isCleartext));
+    const visible = await storage.getAccounts();
+    check('and the added account is among them', visible.some(a => a.id === 'n3'), visible.map(a => a.id).join());
+  }
+
+  // A password change derives two PBKDF2 keys before it writes. Spreading the
+  // metadata it read BEFORE them over whatever happened meanwhile threw away a
+  // passkey registered in the other window during those seconds.
+  scenario('A passkey registered during a password change survives it');
+  await resetState();
+  await storage.saveAccounts(ACCOUNTS);
+  await (await storage.prepareVault(PASSWORD)).commit();
+  {
+    const PRF = new Uint8Array(32).fill(9);
+    const masterKey = await vault.getMasterKeyBytes();
+    const changing = vault.changePassword(PASSWORD, 'a password chosen meanwhile');
+    await vault.attachPasskey(masterKey!, 'Y3JlZA==', 'c2FsdA==', PRF, 'Phone');
+    await changing;
+    await flush();
+    check('the passkey is still registered', (await vault.getVaultPasskey())?.label === 'Phone');
+    await vault.lock();
+    check('the new password opens the vault', await opens(vault.unlockWithPassword('a password chosen meanwhile')));
+    await vault.lock();
+    check('and so does the passkey', await opens(vault.unlockWithPasskey(PRF)));
+    await vault.lock();
+  }
+
+  // Cleartext arriving from an older device is sealed on the way in, not
+  // persisted as it came.
+  scenario('Cleartext merged from sync under a vault lands encrypted');
+  await resetState();
+  await storage.saveAccounts(ACCOUNTS);
+  await (await storage.prepareVault(PASSWORD)).commit();
+  await flush();
+  areas.sync.authenticator_accounts_5 = [{ ...ACCOUNTS[0], id: 'old-device', secret: 'NBSWY3DPEB3W64TM' }];
+  {
+    const visible = await storage.getAccounts();
+    check('the account from the older device is shown', visible.some(a => a.id === 'old-device'));
+    check('and stored as ciphertext', !storedRecords().some(isCleartext), JSON.stringify(storedRecords().map(r => r.id)));
+  }
+  await vault.lock();
+  areas.sync.authenticator_accounts_6 = [{ ...ACCOUNTS[0], id: 'while-locked', secret: 'ONSWG4TFORZTA5DI' }];
+  await storage.getStoredAccounts();
+  check('while locked it is left in sync, not written to local in the clear', !storedRecords().some(isCleartext));
 }
