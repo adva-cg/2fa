@@ -408,6 +408,7 @@ type VaultTranslationKeys = {
   'restore.title': string;
   'restore.hint': string;
   'restore.none': string;
+  'restore.older': string;
   /** "{0} account(s)" — what one snapshot holds */
   'restore.count': string;
   'restore.ageToday': string;

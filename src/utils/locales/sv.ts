@@ -346,6 +346,7 @@ const strings: TranslationStrings = {
   "restore.title": "Automatiska kopior",
   "restore.hint": "Den här enheten sparar en kopia av dina konton en gång om dagen och behåller de 7 senaste. Återställning lägger bara till konton som saknas — inget här ersätts.",
   "restore.none": "Inga automatiska kopior på den här enheten än.",
+  "restore.older": "{0} äldre kopior",
   "restore.count": "{0} konto(n)",
   "restore.ageToday": "i dag",
   "restore.ageDays": "för {0} dag(ar) sedan",

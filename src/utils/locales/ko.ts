@@ -346,6 +346,7 @@ const strings: TranslationStrings = {
   "restore.title": "자동 백업",
   "restore.hint": "이 기기는 하루에 한 번 계정 사본을 저장하고 최근 7개를 보관합니다. 복원은 빠진 계정만 추가하며, 지금 있는 것은 바꾸지 않습니다.",
   "restore.none": "이 기기에는 아직 자동 백업이 없습니다.",
+  "restore.older": "이전 사본 {0}개",
   "restore.count": "계정 {0}개",
   "restore.ageToday": "오늘",
   "restore.ageDays": "{0}일 전",

@@ -346,6 +346,7 @@ const strings: TranslationStrings = {
   "restore.title": "Automatic copies",
   "restore.hint": "This device snapshots your accounts once a day and keeps the last 7. Restoring only adds accounts that are missing — nothing here is replaced.",
   "restore.none": "No automatic copies on this device yet.",
+  "restore.older": "{0} older copies",
   "restore.count": "{0} account(s)",
   "restore.ageToday": "today",
   "restore.ageDays": "{0} day(s) ago",

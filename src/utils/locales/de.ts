@@ -346,6 +346,7 @@ const strings: TranslationStrings = {
   "restore.title": "Automatische Kopien",
   "restore.hint": "Dieses Gerät speichert einmal täglich eine Kopie deiner Konten und behält die letzten 7. Beim Wiederherstellen werden nur fehlende Konten ergänzt — nichts hier wird ersetzt.",
   "restore.none": "Auf diesem Gerät gibt es noch keine automatischen Kopien.",
+  "restore.older": "{0} ältere Kopien",
   "restore.count": "{0} Konto/Konten",
   "restore.ageToday": "heute",
   "restore.ageDays": "vor {0} Tag(en)",

@@ -346,6 +346,7 @@ const strings: TranslationStrings = {
   "restore.title": "自动备份",
   "restore.hint": "本设备每天保存一次账户副本，保留最近 7 份。恢复只会补回缺失的账户，不会替换现有内容。",
   "restore.none": "此设备上还没有自动备份。",
+  "restore.older": "另有 {0} 份较早的副本",
   "restore.count": "{0} 个账户",
   "restore.ageToday": "今天",
   "restore.ageDays": "{0} 天前",

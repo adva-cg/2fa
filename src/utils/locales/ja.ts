@@ -346,6 +346,7 @@ const strings: TranslationStrings = {
   "restore.title": "自動バックアップ",
   "restore.hint": "この端末は1日1回アカウントのコピーを保存し、直近7件を保持します。復元は不足しているアカウントを追加するだけで、いまあるものは置き換えません。",
   "restore.none": "この端末にはまだ自動バックアップがありません。",
+  "restore.older": "古いコピーが {0} 件",
   "restore.count": "{0} 件のアカウント",
   "restore.ageToday": "今日",
   "restore.ageDays": "{0} 日前",

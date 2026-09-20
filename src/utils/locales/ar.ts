@@ -346,6 +346,7 @@ const strings: TranslationStrings = {
   "restore.title": "النسخ التلقائية",
   "restore.hint": "يحفظ هذا الجهاز نسخة من حساباتك مرة يوميًا ويحتفظ بآخر 7 نسخ. الاستعادة تضيف الحسابات الناقصة فقط، ولا تستبدل شيئًا مما هو موجود.",
   "restore.none": "لا توجد نسخ تلقائية على هذا الجهاز بعد.",
+  "restore.older": "{0} نسخ أقدم",
   "restore.count": "{0} حساب",
   "restore.ageToday": "اليوم",
   "restore.ageDays": "قبل {0} يوم",

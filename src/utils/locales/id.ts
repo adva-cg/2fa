@@ -346,6 +346,7 @@ const strings: TranslationStrings = {
   "restore.title": "Salinan otomatis",
   "restore.hint": "Perangkat ini menyimpan salinan akun sekali sehari dan menyimpan 7 terakhir. Pemulihan hanya menambahkan akun yang hilang — tidak ada yang digantikan.",
   "restore.none": "Belum ada salinan otomatis di perangkat ini.",
+  "restore.older": "{0} salinan lebih lama",
   "restore.count": "{0} akun",
   "restore.ageToday": "hari ini",
   "restore.ageDays": "{0} hari lalu",

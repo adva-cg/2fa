@@ -346,6 +346,7 @@ const strings: TranslationStrings = {
   "restore.title": "Bản sao tự động",
   "restore.hint": "Thiết bị này lưu một bản sao tài khoản mỗi ngày một lần và giữ 7 bản gần nhất. Khôi phục chỉ thêm những tài khoản còn thiếu — không thay thế thứ gì đang có.",
   "restore.none": "Chưa có bản sao tự động nào trên thiết bị này.",
+  "restore.older": "{0} bản sao cũ hơn",
   "restore.count": "{0} tài khoản",
   "restore.ageToday": "hôm nay",
   "restore.ageDays": "{0} ngày trước",

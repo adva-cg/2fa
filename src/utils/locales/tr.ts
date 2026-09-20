@@ -346,6 +346,7 @@ const strings: TranslationStrings = {
   "restore.title": "Otomatik kopyalar",
   "restore.hint": "Bu cihaz günde bir kez hesaplarınızın kopyasını alır ve son 7 tanesini saklar. Geri yükleme yalnızca eksik hesapları ekler; buradakilerin yerine hiçbir şey konmaz.",
   "restore.none": "Bu cihazda henüz otomatik kopya yok.",
+  "restore.older": "{0} daha eski kopya",
   "restore.count": "{0} hesap",
   "restore.ageToday": "bugün",
   "restore.ageDays": "{0} gün önce",

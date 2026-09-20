@@ -346,6 +346,7 @@ const strings: TranslationStrings = {
   "restore.title": "Automatische kopieën",
   "restore.hint": "Dit apparaat maakt één keer per dag een kopie van je accounts en bewaart de laatste 7. Herstellen voegt alleen ontbrekende accounts toe — niets hier wordt vervangen.",
   "restore.none": "Nog geen automatische kopieën op dit apparaat.",
+  "restore.older": "{0} oudere kopieën",
   "restore.count": "{0} account(s)",
   "restore.ageToday": "vandaag",
   "restore.ageDays": "{0} dag(en) geleden",
