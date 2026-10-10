@@ -6,23 +6,11 @@ import { applyOpenMode, registerOpenMode } from './open-mode';
 import { QUICK_FILL_ENABLED_KEY } from '@/utils/quick-fill';
 import { restoreBadge, showUpdateBadge } from '@/utils/update-badge';
 
-// Hosted rather than bundled so the copy can be updated without shipping a new
-// extension version, and so the uninstall feedback survives the extension being
-// gone by the time the page opens.
-// www, not the apex: the apex only redirects here, and the uninstall URL in
-// particular is handed to Chrome and opened after we are gone — a hop we do not
-// need on the one page we get no second chance at.
-const WELCOME_URL = 'https://www.authenticator.sh/welcome';
-const UNINSTALL_FEEDBACK_URL = 'https://www.authenticator.sh/uninstall';
-
 chrome.runtime.onInstalled.addListener((details) => {
-  chrome.runtime.setUninstallURL(UNINSTALL_FEEDBACK_URL);
   void syncContextMenu();
   void applyOpenMode();
 
-  if (details.reason === 'install') {
-    chrome.tabs.create({ url: WELCOME_URL });
-  } else if (details.reason === 'update') {
+  if (details.reason === 'update') {
     // Unpacked extensions fire onInstalled('update') on every dev reload, even
     // without a version bump — only (re)arm the modal if this version hasn't
     // been acknowledged yet.

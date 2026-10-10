@@ -15,7 +15,6 @@ import { AlertTriangle, CameraOff, Check, Loader2, Lock, Upload } from 'lucide-r
 import type jsQRType from 'jsqr';
 import { Logo } from '@/components/Logo';
 import { FeedbackHost } from '@/components/FeedbackHost';
-import { SupportFooter } from '@/components/SupportFooter';
 import { applyDocumentLanguage, createT, loadLanguage, resolveLanguage, type Language, type TranslationKey } from '@/utils/i18n';
 import { settingsFromChanges } from '@/utils/settings-watch';
 import { addMultipleAccounts } from '@/utils/storage';
@@ -683,10 +682,6 @@ export default function App() {
           )}
 
           <canvas ref={canvasRef} className="hidden" />
-
-          <div className="mt-10 rounded-xl border border-gray-200 dark:border-dark-600 overflow-hidden">
-            <SupportFooter language={language} />
-          </div>
         </div>
         <FeedbackHost />
       </div>

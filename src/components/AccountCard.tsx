@@ -74,8 +74,8 @@ interface AccountCardProps {
   account: Account;
   onDelete: (id: string) => void;
   onEdit: (account: Account) => void;
-  /** Opens the share dialog. Absent on the broken-record row: no code, no link. */
-  onShare: (account: Account) => void;
+  /** Opens the share dialog. Omitted in this build: the link opened the author's site. */
+  onShare?: (account: Account) => void;
   language: Language;
   viewMode?: ViewMode;
   /** Off by default — see the toggle in Settings and the note beside it. */
@@ -293,6 +293,7 @@ export function AccountCard({
           </button>
 
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0">
+            {onShare && (
             <button
               onClick={() => onShare(account)}
               className="p-1 hover:bg-gray-100 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -300,6 +301,7 @@ export function AccountCard({
             >
               <Share2 size={13} />
             </button>
+            )}
             <button
               onClick={() => onEdit(account)}
               className="p-1 hover:bg-gray-100 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -385,6 +387,7 @@ export function AccountCard({
               them out of the layout would shove the code sideways under the
               cursor, and the code is what the row exists to show. */}
           <div className="flex items-center opacity-0 group-hover:opacity-100 focus-within:opacity-100 group-focus-within:opacity-100 transition-opacity flex-shrink-0">
+            {onShare && (
             <button
               onClick={() => onShare(account)}
               className="p-0.5 hover:bg-gray-100 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -392,6 +395,7 @@ export function AccountCard({
             >
               <Share2 size={12} />
             </button>
+            )}
             <button
               onClick={() => onEdit(account)}
               className="p-0.5 hover:bg-gray-100 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -435,6 +439,7 @@ export function AccountCard({
           )}
         </div>
         <div className="flex items-center gap-0.5">
+          {onShare && (
           <button
             onClick={() => onShare(account)}
             className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 group-focus-within:opacity-100 transition-opacity p-1 hover:bg-gray-100 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -442,6 +447,7 @@ export function AccountCard({
           >
             <Share2 size={13} />
           </button>
+          )}
           <button
             onClick={() => onEdit(account)}
             className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 group-focus-within:opacity-100 transition-opacity p-1 hover:bg-gray-100 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"

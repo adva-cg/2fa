@@ -1,5 +1,5 @@
 import { useCallback, useState, useMemo, useRef, useEffect } from 'react';
-import { Plus, Settings, AlertTriangle, HelpCircle, Moon, Sun, Sparkles, ArrowLeft } from 'lucide-react';
+import { Plus, Settings, AlertTriangle, Moon, Sun, Sparkles, ArrowLeft } from 'lucide-react';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useVault } from '@/hooks/useVault';
 import { AccountCard, type ViewMode } from '@/components/AccountCard';
@@ -9,11 +9,8 @@ import { ExportImport, importBackupText, importResultKind, importResultMessage }
 import { importURIList, looksLikeURIList } from '@/utils/uri-import';
 import { accountLabel } from '@/utils/account-label';
 import { EditAccountModal } from '@/components/EditAccountModal';
-import { ShareModal } from '@/components/ShareModal';
 import { BackupReminder } from '@/components/BackupReminder';
 import { UpdateModal } from '@/components/UpdateModal';
-import { PromoBanner } from '@/components/PromoBanner';
-import { ReviewPrompt } from '@/components/ReviewPrompt';
 import { Logo } from '@/components/Logo';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { SettingToggle } from '@/components/SettingToggle';
@@ -25,7 +22,6 @@ import { EmptyStateGuide } from '@/components/EmptyStateGuide';
 import { AccountsUnavailable } from '@/components/AccountsUnavailable';
 import { RestoreBackups, RestoreOffer } from '@/components/RestoreBackups';
 import { GroupFilter } from '@/components/GroupFilter';
-import { SupportFooter } from '@/components/SupportFooter';
 import { getTimeSyncNotice, dismissTimeNotice, getClockStatus, recheckClock, type ClockStatus } from '@/utils/time-sync';
 import { applyDocumentLanguage, createT, loadLanguage, resolveLanguage, type Language } from '@/utils/i18n';
 import { settingsFromChanges } from '@/utils/settings-watch';
@@ -37,13 +33,8 @@ import { shouldShowVaultPrompt, markVaultPromptShown } from '@/utils/vault-promp
 import { describeImport, importErrorMessage } from '@/utils/import-message';
 import { confirmDialog, promptDialog, toast } from '@/utils/ui-feedback';
 import { FeedbackHost } from '@/components/FeedbackHost';
-import { shouldShowPromoBanner, recordFirstOpen } from '@/utils/promo-banner';
-import { recordOpen, shouldShowReviewPrompt, snoozeReviewPrompt } from '@/utils/review-prompt';
 import { clearUpdateBadge } from '@/utils/update-badge';
-import { productHuntDue } from '@/utils/product-hunt';
-import { ProductHuntBanner } from '@/components/ProductHuntBanner';
 import { readActiveGroup, rememberActiveGroup, forgetActiveGroup } from '@/utils/active-group';
-import { helpUrl } from '@/utils/links';
 import { parseQRCode, generateRandomColor, UnsupportedOTPTypeError } from '@/utils/qr-parser';
 import { saveErrorMessage } from '@/utils/save-error';
 import { decodeQrFromImage } from '@/utils/qr-decode';
@@ -69,11 +60,6 @@ import {
 } from '@/utils/open-mode';
 import { claimPopoutWindow, isPopoutSiteMessage, openPopoutWindow, siteOfUrl } from '@/utils/popout';
 import type { Account } from '@/types';
-
-// Straight to the Web Store review form: authenticator.sh/rate is a landing
-// page, and every extra hop between the prompt and the review box costs
-// reviews.
-const REVIEW_URL = 'https://chromewebstore.google.com/detail/2fa/ebhcbenbgjmaebpgbldimndmfomjmphd/reviews';
 
 /**
  * The version, for the line at the foot of Settings.
@@ -137,7 +123,6 @@ function App() {
   const [language, setLanguage] = useState<Language>('en');
   const [darkMode, setDarkMode] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-  const [sharingAccount, setSharingAccount] = useState<Account | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [showBackupReminder, setShowBackupReminder] = useState(false);
   const [showVaultPrompt, setShowVaultPrompt] = useState(false);
@@ -164,11 +149,6 @@ function App() {
   const [currentDomain, setCurrentDomain] = useState<string | null>(null);
   const [suggestedAccountId, setSuggestedAccountId] = useState<string | null>(null);
   const [whatsNewVersion, setWhatsNewVersion] = useState<string | null>(null);
-  const [showPromoBanner, setShowPromoBanner] = useState(false);
-  const [reviewDismissed, setReviewDismissed] = useState(false);
-  const [openCount, setOpenCount] = useState<number | null>(null);
-  const [showProductHunt, setShowProductHunt] = useState(false);
-  const [showReviewPrompt, setShowReviewPrompt] = useState(false);
   const draggedIdRef = useRef<string | null>(null);
   /** The last account reported gone, so the save path and the effect below do not both say it. */
   const goneAccountRef = useRef<string | null>(null);
@@ -782,43 +762,35 @@ function App() {
   // keeps Tab and the mouse out of the list underneath — without it a second
   // full-screen view could be opened on top of the first from behind it.
   const overlayOpen = Boolean(
-    showAddModal || editingAccount || sharingAccount || showVaultSetup || whatsNewVersion
+    showAddModal || editingAccount || showVaultSetup || whatsNewVersion
   );
 
-  // Edit and Share each hold a whole decrypted account for as long as they are
-  // open — secret included — and an idle lock in a window or side panel
-  // arrives while one of them is. useAccounts drops its own copies; these are
-  // the two nobody else owns.
+  // Edit holds a whole decrypted account for as long as it is open — secret
+  // included — and an idle lock in a window or side panel arrives while it is.
+  // useAccounts drops its own copies; this is the one nobody else owns.
   useEffect(() => {
     if (vault.enabled === true && vault.locked) {
       setEditingAccount(null);
-      setSharingAccount(null);
     }
   }, [vault.enabled, vault.locked]);
 
-  // The same two views, when their account is deleted in another window. Left
-  // open, Edit saved into nothing and said "Changes saved", and Share kept
-  // handing out codes for an account the user had just removed.
+  // The same view, when its account is deleted in another window. Left open,
+  // Edit saved into nothing and said "Changes saved".
   //
   // Only against a list that was really read: while loading, behind a lock, or
   // after a failed read the list is empty for reasons that say nothing about
   // this account.
   useEffect(() => {
     if (loading || error || vaultHidingAccounts) return;
-    const gone = (account: Account | null) =>
-      account !== null && !accounts.some(existing => existing.id === account.id);
-    const goneEditing = gone(editingAccount);
-    const goneSharing = gone(sharingAccount);
-    if (!goneEditing && !goneSharing) return;
+    if (editingAccount === null || accounts.some(existing => existing.id === editingAccount.id)) return;
 
-    const id = (goneEditing ? editingAccount : sharingAccount)!.id;
-    if (goneEditing) setEditingAccount(null);
-    if (goneSharing) setSharingAccount(null);
+    const id = editingAccount.id;
+    setEditingAccount(null);
     if (goneAccountRef.current !== id) toast('info', t('accounts.notFound'));
     goneAccountRef.current = id;
     // `t` is rebuilt every render; the language changing is no reason to re-check.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts, loading, error, vaultHidingAccounts, editingAccount, sharingAccount]);
+  }, [accounts, loading, error, vaultHidingAccounts, editingAccount]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -840,75 +812,6 @@ function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [overlayOpen, showSettings]);
 
-  useEffect(() => {
-    chrome.storage.local.get('reviewDismissed', (result) => setReviewDismissed(!!result.reviewDismissed));
-    recordOpen().then(setOpenCount);
-  }, []);
-
-  // Held back until the accounts have loaded: an empty list during loading looks
-  // exactly like "never finished setup", which is who the prompt must skip.
-  useEffect(() => {
-    if (loading || openCount === null) return;
-    shouldShowReviewPrompt(openCount, accounts.length).then(setShowReviewPrompt);
-  }, [loading, openCount, accounts.length]);
-
-  // The Product Hunt banner — see product-hunt.ts for when and why. Same
-  // readiness as the review ask above: while loading, and behind a locked
-  // vault, the list is empty and says nothing about the person holding it.
-  //
-  // Asked again every minute and whenever the page comes back into view, not
-  // only when the account count changes: a side panel or a floating window
-  // stays open for days, and one opened during the launch kept announcing it
-  // long after the day was over — and after it was dismissed in another window.
-  useEffect(() => {
-    if (loading || openCount === null || accounts.length === 0) return;
-    let cancelled = false;
-    const check = () => {
-      productHuntDue()
-        .then(due => {
-          if (!cancelled) setShowProductHunt(due);
-        })
-        .catch(() => {});
-    };
-    check();
-    const timer = window.setInterval(check, 60_000);
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') check();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [loading, openCount, accounts.length]);
-
-  const handleSnoozeReview = async () => {
-    setShowReviewPrompt(false);
-    if (openCount !== null) await snoozeReviewPrompt(openCount);
-  };
-
-  // Everyone who takes the prompt lands in the same place: the Web Store review
-  // box. Asking for a rating inside the popup and then routing only the happy
-  // answers to the store is review gating — the kind of thing an extension
-  // holding people's 2FA secrets cannot afford to be delisted over. Whoever
-  // wants to complain still has "Help & support" and "Request a feature" in the
-  // footer of every screen.
-  const handleRate = async () => {
-    setReviewDismissed(true);
-    setShowReviewPrompt(false);
-    // Awaited before the tab is opened: creating a tab tears this page down, and
-    // a dismissal that never reached disk means asking again someone who has
-    // already left a review.
-    await chrome.storage.local.set({ reviewDismissed: true }).catch(() => {});
-    // The rating block lives inside the "What's New" modal too, and that modal
-    // is re-armed from storage until it is explicitly closed — a rating is one
-    // of the two things that count as closing it, the other being "Got it".
-    // Following a link out of the modal is not one of them.
-    handleCloseWhatsNew();
-    chrome.tabs.create({ url: REVIEW_URL });
-  };
-
   // Check if backup reminder should be shown
   useEffect(() => {
     if (!loading && accounts.length > 0) {
@@ -929,18 +832,13 @@ function App() {
   // Counted when due, someone with a backup reminder up on every open spent all
   // three without once seeing the offer.
   const vaultPromptVisible =
-    showVaultPrompt && !showBackupReminder && !showProductHunt && !error && timeOffsetSec === null && !showSettings;
+    showVaultPrompt && !showBackupReminder && !error && timeOffsetSec === null && !showSettings;
   const vaultPromptCounted = useRef(false);
   useEffect(() => {
     if (!vaultPromptVisible || vaultPromptCounted.current) return;
     vaultPromptCounted.current = true;
     markVaultPromptShown();
   }, [vaultPromptVisible]);
-
-  // Cross-promo banner — only for users active for at least a week
-  useEffect(() => {
-    recordFirstOpen().then(() => shouldShowPromoBanner().then(setShowPromoBanner));
-  }, []);
 
   // Opens the settings panel rather than exporting straight away: since 1.10.0
   // the user has to choose between a password-protected and a plain file, and
@@ -1042,7 +940,6 @@ function App() {
             </div>
           </div>
           <LockScreen language={language} onUnlock={vault.unlock} onRecovered={vault.refresh} />
-          <SupportFooter language={language} />
           <FeedbackHost />
         </div>
       </div>
@@ -1111,15 +1008,6 @@ function App() {
               language={language}
               onLanguageChange={handleLanguageChange}
             />
-            {/* Opens the help page rather than a panel: the answers live on the
-                site now, in the reader's own language and with room to be read. */}
-            <button
-              onClick={() => chrome.tabs.create({ url: helpUrl(language) })}
-              className="p-1.5 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-dark-700"
-              title={t('header.faq')}
-            >
-              <HelpCircle className="text-gray-600 dark:text-gray-400" size={18} />
-            </button>
             <button
               onClick={() => setShowSettings(!showSettings)}
               className={`p-1.5 rounded-lg transition-colors ${
@@ -1170,12 +1058,6 @@ function App() {
             </div>
             <div className="flex items-center gap-3 mt-1.5">
               <button
-                onClick={() => chrome.tabs.create({ url: helpUrl(language, 'time-sync') })}
-                className="font-medium text-yellow-900 dark:text-yellow-200 underline underline-offset-2 hover:text-yellow-950 dark:hover:text-yellow-100"
-              >
-                {t('warning.howToFix')}
-              </button>
-              <button
                 onClick={() => {
                   dismissTimeNotice(timeOffsetSec);
                   setTimeOffsetSec(null);
@@ -1189,20 +1071,10 @@ function App() {
         </div>
       )}
 
-      {/* The Product Hunt launch, for the day it lasts. Above the codes rather
-          than in a modal: someone opening this mid-login is not stopped, and the
-          ask is still the first thing they see. For that one day it outranks the
-          backup reminder and the vault offer, which are back the day after, and
-          it gives way to an error and the clock warning — those are about the
-          codes being wrong. */}
-      {showProductHunt && !error && timeOffsetSec === null && !showSettings && (
-        <ProductHuntBanner language={language} onDismiss={() => setShowProductHunt(false)} />
-      )}
-
       {/* Backup Reminder */}
       {/* Not over Settings: its own Export button is on that screen, four lines
           below, and the strip's button only opens the screen you are on. */}
-      {showBackupReminder && !showProductHunt && !error && timeOffsetSec === null && !showSettings && (
+      {showBackupReminder && !error && timeOffsetSec === null && !showSettings && (
         <BackupReminder
           language={language}
           onExport={handleBackupFromReminder}
@@ -1404,13 +1276,6 @@ function App() {
           {APP_VERSION && (
             <p className="mt-5 select-text text-center text-[11px] text-gray-400 dark:text-gray-500">
               {t('settings.version', APP_VERSION)}
-              <span aria-hidden="true"> · </span>
-              <button
-                onClick={handleRate}
-                className="underline hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                {t('settings.rateUs')}
-              </button>
             </p>
           )}
           </div>
@@ -1527,7 +1392,6 @@ function App() {
                     account={suggestedAccount}
                     onDelete={handleDeleteAccount}
                     onEdit={setEditingAccount}
-                    onShare={setSharingAccount}
                     language={language}
                     viewMode={viewMode}
                     showAvatar={showAvatars}
@@ -1548,7 +1412,6 @@ function App() {
                 account={account}
                 onDelete={handleDeleteAccount}
                 onEdit={setEditingAccount}
-                onShare={setSharingAccount}
                 language={language}
                 viewMode={viewMode}
                 showAvatar={showAvatars}
@@ -1570,31 +1433,9 @@ function App() {
                 showGroup={activeGroup === null}
               />
             ))}
-            {/* At most one card under the list. The review ask wins while it is
-                due: it retires permanently once taken, whereas the promo has
-                every later open to itself — and stacking two asks below
-                someone's codes reads as an ad break.
-
-                Nothing while the "What's New" modal is up: it carries the same
-                pitch, so the card behind it is the identical ask twice on one
-                screen — and on the 1.11.0 rollout that modal opens for everyone
-                at once. */}
-            {!isFiltered && whatsNewVersion === null && !showProductHunt &&
-              (showReviewPrompt ? (
-                <ReviewPrompt language={language} onRate={handleRate} onSnooze={handleSnoozeReview} />
-              ) : showPromoBanner ? (
-                <PromoBanner language={language} onDismiss={() => setShowPromoBanner(false)} />
-              ) : null)}
           </div>
         )}
       </div>
-      )}
-
-      {/* Not on the working screen: once there are codes to read, the bar only
-          takes space from them. It belongs where someone is likely to be stuck —
-          an empty list, settings, and the lock screen. */}
-      {(accounts.length === 0 || showSettings) && (
-        <SupportFooter language={language} />
       )}
 
       {/* Add Button (Floating Action Button) */}
@@ -1632,15 +1473,6 @@ function App() {
         />
       )}
 
-      {/* Share codes by link */}
-      {sharingAccount && (
-        <ShareModal
-          account={sharingAccount}
-          language={language}
-          onClose={() => setSharingAccount(null)}
-        />
-      )}
-
       {/* Password Vault Setup */}
       {showVaultSetup && (
         <VaultSetupModal
@@ -1659,9 +1491,6 @@ function App() {
           version={whatsNewVersion}
           language={language}
           onClose={handleCloseWhatsNew}
-          reviewDismissed={reviewDismissed}
-          onRate={handleRate}
-          onSnoozeReview={handleSnoozeReview}
         />
       )}
 

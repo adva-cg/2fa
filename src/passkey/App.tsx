@@ -18,7 +18,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Check, Fingerprint, Lock } from 'lucide-react';
 import { Logo } from '@/components/Logo';
-import { SupportFooter } from '@/components/SupportFooter';
 import { applyDocumentLanguage, createT, loadLanguage, resolveLanguage, type Language } from '@/utils/i18n';
 import {
   evaluatePrf,
@@ -223,8 +222,6 @@ export default function App() {
           </button>
         )}
       </div>
-
-      <SupportFooter language={language} />
     </div>
   );
 }
