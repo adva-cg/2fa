@@ -385,6 +385,15 @@ const strings: TranslationStrings = {
   "import.nothingReadable": "此文件中的账户都无法读取——未添加任何内容。如果这是其他应用的备份，它可能已加密——请改为逐个扫描账户的二维码来添加。",
   "import.onlyUnsupported": "此文件中的所有账户都使用本应用不支持的验证码类型（基于计数器或 Steam）——未添加任何内容。",
   "import.encryptedElsewhere": "这份来自 {0} 的备份已加密。请在不设密码、不加密的情况下重新导出，然后导入该文件。",
+  "exportQr.action": "导出为二维码",
+  "exportQr.confirmTitle": "显示密钥？",
+  "exportQr.confirmBody": "此二维码包含密钥。扫描它的人可以添加此账户并登录。",
+  "exportQr.show": "显示",
+  "exportQr.copy": "复制链接",
+  "exportQr.copied": "链接已复制",
+  "exportQr.scan": "从屏幕扫描，或复制链接。",
+  "exportQr.drawFailed": "无法绘制二维码。请改为复制链接。",
+  "exportQr.unusable": "无法导出此账户——其密钥不能生成验证码。",
 };
 
 export default strings;

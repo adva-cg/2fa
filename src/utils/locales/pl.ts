@@ -385,6 +385,15 @@ const strings: TranslationStrings = {
   "import.nothingReadable": "Nie udało się odczytać żadnego konta z tego pliku — nic nie dodano. Jeśli to kopia z innej aplikacji, może być zaszyfrowana — dodaj każde konto, skanując jego kod QR.",
   "import.onlyUnsupported": "Wszystkie konta w tym pliku używają typu kodu, którego ta aplikacja nie obsługuje (licznikowego lub Steam) — nic nie dodano.",
   "import.encryptedElsewhere": "Ta kopia zapasowa z {0} jest zaszyfrowana. Wyeksportuj ją ponownie bez hasła i szyfrowania, a potem zaimportuj ten plik.",
+  "exportQr.action": "Eksportuj jako QR",
+  "exportQr.confirmTitle": "Pokazać tajny klucz?",
+  "exportQr.confirmBody": "Ten kod QR zawiera tajny klucz. Kto go zeskanuje, może dodać to konto i się zalogować.",
+  "exportQr.show": "Pokaż",
+  "exportQr.copy": "Kopiuj link",
+  "exportQr.copied": "Link skopiowany",
+  "exportQr.scan": "Zeskanuj z ekranu albo skopiuj link.",
+  "exportQr.drawFailed": "Nie udało się narysować kodu QR. Skopiuj link.",
+  "exportQr.unusable": "Tego konta nie da się wyeksportować — jego klucz nie generuje kodu.",
 };
 
 export default strings;

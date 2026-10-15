@@ -385,6 +385,15 @@ const strings: TranslationStrings = {
   "import.nothingReadable": "Không đọc được tài khoản nào trong tệp này — không có gì được thêm. Nếu đây là bản sao lưu từ ứng dụng khác, nó có thể đã được mã hóa — hãy thêm từng tài khoản bằng cách quét mã QR.",
   "import.onlyUnsupported": "Mọi tài khoản trong tệp này đều dùng loại mã mà ứng dụng này không hỗ trợ (dựa trên bộ đếm hoặc Steam) — không có gì được thêm.",
   "import.encryptedElsewhere": "Bản sao lưu này từ {0} đã được mã hóa. Hãy xuất lại mà không đặt mật khẩu hay mã hóa, rồi nhập tệp đó.",
+  "exportQr.action": "Xuất dưới dạng QR",
+  "exportQr.confirmTitle": "Hiện khóa bí mật?",
+  "exportQr.confirmBody": "Mã QR này chứa khóa bí mật. Ai quét được có thể thêm tài khoản này và đăng nhập.",
+  "exportQr.show": "Hiện",
+  "exportQr.copy": "Sao chép liên kết",
+  "exportQr.copied": "Đã sao chép liên kết",
+  "exportQr.scan": "Quét từ màn hình hoặc sao chép liên kết.",
+  "exportQr.drawFailed": "Không vẽ được mã QR. Hãy sao chép liên kết.",
+  "exportQr.unusable": "Không xuất được tài khoản này — khóa bí mật không tạo ra mã.",
 };
 
 export default strings;

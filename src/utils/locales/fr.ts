@@ -385,6 +385,15 @@ const strings: TranslationStrings = {
   "import.nothingReadable": "Aucun compte de ce fichier n'a pu être lu — rien n'a été ajouté. S'il s'agit d'une sauvegarde d'une autre application, elle est peut-être chiffrée — ajoutez plutôt chaque compte en scannant son code QR.",
   "import.onlyUnsupported": "Tous les comptes de ce fichier utilisent un type de code que cette application ne prend pas en charge (basé sur un compteur ou Steam) — rien n'a été ajouté.",
   "import.encryptedElsewhere": "Cette sauvegarde de {0} est chiffrée. Exportez-la à nouveau sans mot de passe ni chiffrement, puis importez ce fichier.",
+  "exportQr.action": "Exporter en QR",
+  "exportQr.confirmTitle": "Afficher la clé secrète ?",
+  "exportQr.confirmBody": "Ce QR contient la clé secrète. Quiconque le scanne peut ajouter ce compte et s’y connecter.",
+  "exportQr.show": "Afficher",
+  "exportQr.copy": "Copier le lien",
+  "exportQr.copied": "Lien copié",
+  "exportQr.scan": "Scannez-le à l’écran ou copiez le lien.",
+  "exportQr.drawFailed": "Le QR n’a pas pu être dessiné. Copiez le lien à la place.",
+  "exportQr.unusable": "Ce compte ne peut pas être exporté — sa clé secrète ne produit aucun code.",
 };
 
 export default strings;

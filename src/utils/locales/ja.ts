@@ -385,6 +385,15 @@ const strings: TranslationStrings = {
   "import.nothingReadable": "このファイルのアカウントを 1 件も読み取れませんでした。何も追加されていません。他のアプリのバックアップの場合は暗号化されている可能性があります。各アカウントの QR コードをスキャンして追加してください。",
   "import.onlyUnsupported": "このファイルのアカウントはすべて、このアプリが対応していない種類のコード（カウンター方式または Steam）です。何も追加されていません。",
   "import.encryptedElsewhere": "この {0} のバックアップは暗号化されています。パスワードや暗号化なしで再度エクスポートし、そのファイルをインポートしてください。",
+  "exportQr.action": "QRで書き出す",
+  "exportQr.confirmTitle": "秘密鍵を表示しますか？",
+  "exportQr.confirmBody": "このQRには秘密鍵が含まれます。スキャンした人はこのアカウントを追加してログインできます。",
+  "exportQr.show": "表示",
+  "exportQr.copy": "リンクをコピー",
+  "exportQr.copied": "リンクをコピーしました",
+  "exportQr.scan": "画面から読み取るか、リンクをコピーしてください。",
+  "exportQr.drawFailed": "QRを描画できませんでした。代わりにリンクをコピーしてください。",
+  "exportQr.unusable": "このアカウントは書き出せません。秘密鍵からコードが生成されません。",
 };
 
 export default strings;

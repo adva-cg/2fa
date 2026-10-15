@@ -385,6 +385,15 @@ const strings: TranslationStrings = {
   "import.nothingReadable": "Nenhuma conta deste arquivo pôde ser lida — nada foi adicionado. Se for um backup de outro app, ele pode estar criptografado — adicione cada conta escaneando o código QR dela.",
   "import.onlyUnsupported": "Todas as contas deste arquivo usam um tipo de código que este app não suporta (baseado em contador ou Steam) — nada foi adicionado.",
   "import.encryptedElsewhere": "Este backup do {0} está criptografado. Exporte novamente sem senha nem criptografia e importe esse arquivo.",
+  "exportQr.action": "Exportar como QR",
+  "exportQr.confirmTitle": "Mostrar a chave secreta?",
+  "exportQr.confirmBody": "Este QR contém a chave secreta. Quem o ler pode adicionar esta conta e entrar.",
+  "exportQr.show": "Mostrar",
+  "exportQr.copy": "Copiar link",
+  "exportQr.copied": "Link copiado",
+  "exportQr.scan": "Leia na tela ou copie o link.",
+  "exportQr.drawFailed": "Não foi possível desenhar o QR. Copie o link.",
+  "exportQr.unusable": "Esta conta não pode ser exportada — a chave secreta não gera um código.",
 };
 
 export default strings;

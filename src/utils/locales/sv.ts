@@ -385,6 +385,15 @@ const strings: TranslationStrings = {
   "import.nothingReadable": "Inget av kontona i filen kunde läsas — inget lades till. Om det är en säkerhetskopia från en annan app kan den vara krypterad – lägg till varje konto genom att skanna dess QR-kod i stället.",
   "import.onlyUnsupported": "Alla konton i filen använder en kodtyp som appen inte stöder (räknarbaserad eller Steam) — inget lades till.",
   "import.encryptedElsewhere": "Den här säkerhetskopian från {0} är krypterad. Exportera den igen utan lösenord eller kryptering och importera sedan den filen.",
+  "exportQr.action": "Exportera som QR",
+  "exportQr.confirmTitle": "Visa den hemliga nyckeln?",
+  "exportQr.confirmBody": "Denna QR-kod innehåller den hemliga nyckeln. Den som skannar den kan lägga till kontot och logga in.",
+  "exportQr.show": "Visa",
+  "exportQr.copy": "Kopiera länk",
+  "exportQr.copied": "Länken kopierad",
+  "exportQr.scan": "Skanna den från skärmen eller kopiera länken.",
+  "exportQr.drawFailed": "QR-koden kunde inte ritas. Kopiera länken i stället.",
+  "exportQr.unusable": "Det här kontot kan inte exporteras – nyckeln ger ingen kod.",
 };
 
 export default strings;

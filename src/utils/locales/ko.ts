@@ -385,6 +385,15 @@ const strings: TranslationStrings = {
   "import.nothingReadable": "이 파일의 계정을 하나도 읽을 수 없습니다. 아무것도 추가되지 않았습니다. 다른 앱의 백업이라면 암호화되어 있을 수 있습니다. 각 계정의 QR 코드를 스캔해 추가하세요.",
   "import.onlyUnsupported": "이 파일의 모든 계정이 이 앱이 지원하지 않는 코드 유형(카운터 기반 또는 Steam)입니다. 아무것도 추가되지 않았습니다.",
   "import.encryptedElsewhere": "이 {0} 백업은 암호화되어 있습니다. 비밀번호나 암호화 없이 다시 내보낸 뒤 그 파일을 가져오세요.",
+  "exportQr.action": "QR로 내보내기",
+  "exportQr.confirmTitle": "비밀 키를 표시할까요?",
+  "exportQr.confirmBody": "이 QR에는 비밀 키가 들어 있습니다. 스캔하는 사람은 이 계정을 추가하고 로그인할 수 있습니다.",
+  "exportQr.show": "표시",
+  "exportQr.copy": "링크 복사",
+  "exportQr.copied": "링크를 복사했습니다",
+  "exportQr.scan": "화면에서 스캔하거나 링크를 복사하세요.",
+  "exportQr.drawFailed": "QR을 그릴 수 없습니다. 대신 링크를 복사하세요.",
+  "exportQr.unusable": "이 계정은 내보낼 수 없습니다. 비밀 키로 코드가 만들어지지 않습니다.",
 };
 
 export default strings;

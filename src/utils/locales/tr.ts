@@ -385,6 +385,15 @@ const strings: TranslationStrings = {
   "import.nothingReadable": "Bu dosyadaki hesapların hiçbiri okunamadı — hiçbir şey eklenmedi. Başka bir uygulamanın yedeğiyse şifrelenmiş olabilir — her hesabı QR kodunu tarayarak ekleyin.",
   "import.onlyUnsupported": "Bu dosyadaki tüm hesaplar bu uygulamanın desteklemediği bir kod türü kullanıyor (sayaç tabanlı veya Steam) — hiçbir şey eklenmedi.",
   "import.encryptedElsewhere": "{0} yedeği şifreli. Parola veya şifreleme olmadan yeniden dışa aktarın, ardından o dosyayı içe aktarın.",
+  "exportQr.action": "QR olarak dışa aktar",
+  "exportQr.confirmTitle": "Gizli anahtar gösterilsin mi?",
+  "exportQr.confirmBody": "Bu QR gizli anahtarı içerir. Tarayan herkes bu hesabı ekleyip oturum açabilir.",
+  "exportQr.show": "Göster",
+  "exportQr.copy": "Bağlantıyı kopyala",
+  "exportQr.copied": "Bağlantı kopyalandı",
+  "exportQr.scan": "Ekrandan tarayın veya bağlantıyı kopyalayın.",
+  "exportQr.drawFailed": "QR çizilemedi. Bunun yerine bağlantıyı kopyalayın.",
+  "exportQr.unusable": "Bu hesap dışa aktarılamaz — gizli anahtarı kod üretmez.",
 };
 
 export default strings;

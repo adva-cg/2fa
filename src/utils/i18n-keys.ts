@@ -459,6 +459,17 @@ type VaultTranslationKeys = {
   'import.onlyUnsupported': string;
   /** "{0}" — the app that encrypted the file: Aegis, 2FAS, Bitwarden */
   'import.encryptedElsewhere': string;
+
+  /** Tooltip on the per-account QR button. */
+  'exportQr.action': string;
+  'exportQr.confirmTitle': string;
+  'exportQr.confirmBody': string;
+  'exportQr.show': string;
+  'exportQr.copy': string;
+  'exportQr.copied': string;
+  'exportQr.scan': string;
+  'exportQr.drawFailed': string;
+  'exportQr.unusable': string;
 };
 
 /** A complete set of strings for one language. */

@@ -385,6 +385,15 @@ const strings: TranslationStrings = {
   "import.nothingReadable": "Tidak ada akun dalam file ini yang dapat dibaca — tidak ada yang ditambahkan. Jika ini cadangan dari aplikasi lain, mungkin dienkripsi — tambahkan setiap akun dengan memindai kode QR-nya.",
   "import.onlyUnsupported": "Semua akun dalam file ini menggunakan jenis kode yang tidak didukung aplikasi ini (berbasis penghitung atau Steam) — tidak ada yang ditambahkan.",
   "import.encryptedElsewhere": "Cadangan dari {0} ini dienkripsi. Ekspor ulang tanpa kata sandi atau enkripsi, lalu impor file tersebut.",
+  "exportQr.action": "Ekspor sebagai QR",
+  "exportQr.confirmTitle": "Tampilkan kunci rahasia?",
+  "exportQr.confirmBody": "QR ini berisi kunci rahasia. Siapa pun yang memindainya dapat menambahkan akun ini dan masuk.",
+  "exportQr.show": "Tampilkan",
+  "exportQr.copy": "Salin tautan",
+  "exportQr.copied": "Tautan disalin",
+  "exportQr.scan": "Pindai dari layar, atau salin tautannya.",
+  "exportQr.drawFailed": "QR tidak dapat digambar. Salin tautannya.",
+  "exportQr.unusable": "Akun ini tidak dapat diekspor — kunci rahasianya tidak menghasilkan kode.",
 };
 
 export default strings;

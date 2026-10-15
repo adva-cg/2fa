@@ -385,6 +385,15 @@ const strings: TranslationStrings = {
   "import.nothingReadable": "Geen enkel account in dit bestand kon worden gelezen — er is niets toegevoegd. Is het een back-up uit een andere app, dan is die mogelijk versleuteld — voeg elk account toe door de QR-code te scannen.",
   "import.onlyUnsupported": "Alle accounts in dit bestand gebruiken een codetype dat deze app niet ondersteunt (op teller gebaseerd of Steam) — er is niets toegevoegd.",
   "import.encryptedElsewhere": "Deze back-up uit {0} is versleuteld. Exporteer opnieuw zonder wachtwoord of versleuteling en importeer dat bestand.",
+  "exportQr.action": "Exporteren als QR",
+  "exportQr.confirmTitle": "Geheime sleutel tonen?",
+  "exportQr.confirmBody": "Deze QR bevat de geheime sleutel. Wie hem scant, kan dit account toevoegen en inloggen.",
+  "exportQr.show": "Tonen",
+  "exportQr.copy": "Link kopiëren",
+  "exportQr.copied": "Link gekopieerd",
+  "exportQr.scan": "Scan hem van het scherm of kopieer de link.",
+  "exportQr.drawFailed": "De QR kon niet worden getekend. Kopieer in plaats daarvan de link.",
+  "exportQr.unusable": "Dit account kan niet worden geëxporteerd — de sleutel levert geen code op.",
 };
 
 export default strings;
