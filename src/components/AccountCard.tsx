@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Check, Trash2, GripVertical, Pencil, Share2 } from 'lucide-react';
+import { Copy, Check, Trash2, GripVertical, Pencil, Share2, QrCode } from 'lucide-react';
 import type { Account } from '@/types';
 import { colorForKey } from '@/utils/qr-parser';
 import { accountLabel } from '@/utils/account-label';
@@ -76,6 +76,8 @@ interface AccountCardProps {
   onEdit: (account: Account) => void;
   /** Opens the share dialog. Omitted in this build: the link opened the author's site. */
   onShare?: (account: Account) => void;
+  /** Opens the confirm-then-QR export for this one account. */
+  onExportQr?: (account: Account) => void;
   language: Language;
   viewMode?: ViewMode;
   /** Off by default — see the toggle in Settings and the note beside it. */
@@ -100,6 +102,7 @@ export function AccountCard({
   onDelete,
   onEdit,
   onShare,
+  onExportQr,
   language,
   viewMode = 'normal',
   showAvatar = false,
@@ -302,6 +305,15 @@ export function AccountCard({
               <Share2 size={13} />
             </button>
             )}
+            {onExportQr && (
+            <button
+              onClick={() => onExportQr(account)}
+              className="p-1 hover:bg-gray-100 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              title={t('exportQr.action')}
+            >
+              <QrCode size={13} />
+            </button>
+            )}
             <button
               onClick={() => onEdit(account)}
               className="p-1 hover:bg-gray-100 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -396,6 +408,15 @@ export function AccountCard({
               <Share2 size={12} />
             </button>
             )}
+            {onExportQr && (
+            <button
+              onClick={() => onExportQr(account)}
+              className="p-0.5 hover:bg-gray-100 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              title={t('exportQr.action')}
+            >
+              <QrCode size={12} />
+            </button>
+            )}
             <button
               onClick={() => onEdit(account)}
               className="p-0.5 hover:bg-gray-100 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -446,6 +467,15 @@ export function AccountCard({
             title={t('share.title')}
           >
             <Share2 size={13} />
+          </button>
+          )}
+          {onExportQr && (
+          <button
+            onClick={() => onExportQr(account)}
+            className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 group-focus-within:opacity-100 transition-opacity p-1 hover:bg-gray-100 dark:hover:bg-dark-600 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            title={t('exportQr.action')}
+          >
+            <QrCode size={13} />
           </button>
           )}
           <button

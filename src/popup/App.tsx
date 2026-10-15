@@ -9,6 +9,7 @@ import { ExportImport, importBackupText, importResultKind, importResultMessage }
 import { importURIList, looksLikeURIList } from '@/utils/uri-import';
 import { accountLabel } from '@/utils/account-label';
 import { EditAccountModal } from '@/components/EditAccountModal';
+import { ExportQrModal } from '@/components/ExportQrModal';
 import { BackupReminder } from '@/components/BackupReminder';
 import { UpdateModal } from '@/components/UpdateModal';
 import { Logo } from '@/components/Logo';
@@ -36,6 +37,7 @@ import { FeedbackHost } from '@/components/FeedbackHost';
 import { clearUpdateBadge } from '@/utils/update-badge';
 import { readActiveGroup, rememberActiveGroup, forgetActiveGroup } from '@/utils/active-group';
 import { parseQRCode, generateRandomColor, UnsupportedOTPTypeError } from '@/utils/qr-parser';
+import { otpauthExportURL } from '@/utils/qr-export';
 import { saveErrorMessage } from '@/utils/save-error';
 import { decodeQrFromImage } from '@/utils/qr-decode';
 import { cleanSecret, loadTimeOffset } from '@/utils/totp';
@@ -123,6 +125,7 @@ function App() {
   const [language, setLanguage] = useState<Language>('en');
   const [darkMode, setDarkMode] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [exportingQr, setExportingQr] = useState<{ account: Account; url: string } | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [showBackupReminder, setShowBackupReminder] = useState(false);
   const [showVaultPrompt, setShowVaultPrompt] = useState(false);
@@ -557,6 +560,23 @@ function App() {
     }
   };
 
+  const handleExportQr = async (account: Account) => {
+    const confirmed = await confirmDialog({
+      title: t('exportQr.confirmTitle'),
+      body: t('exportQr.confirmBody'),
+      confirmLabel: t('exportQr.show'),
+      cancelLabel: t('common.cancel'),
+      danger: true,
+    });
+    if (!confirmed) return;
+    const url = otpauthExportURL(account);
+    if (!url) {
+      toast('error', t('exportQr.unusable'));
+      return;
+    }
+    setExportingQr({ account, url });
+  };
+
   const handleDeleteAccount = async (id: string) => {
     const account = accounts.find(a => a.id === id);
     const confirmed = await confirmDialog({
@@ -762,7 +782,7 @@ function App() {
   // keeps Tab and the mouse out of the list underneath — without it a second
   // full-screen view could be opened on top of the first from behind it.
   const overlayOpen = Boolean(
-    showAddModal || editingAccount || showVaultSetup || whatsNewVersion
+    showAddModal || editingAccount || exportingQr || showVaultSetup || whatsNewVersion
   );
 
   // Edit holds a whole decrypted account for as long as it is open — secret
@@ -771,6 +791,7 @@ function App() {
   useEffect(() => {
     if (vault.enabled === true && vault.locked) {
       setEditingAccount(null);
+      setExportingQr(null);
     }
   }, [vault.enabled, vault.locked]);
 
@@ -782,15 +803,18 @@ function App() {
   // this account.
   useEffect(() => {
     if (loading || error || vaultHidingAccounts) return;
-    if (editingAccount === null || accounts.some(existing => existing.id === editingAccount.id)) return;
+    const missingEdit = editingAccount !== null && !accounts.some(existing => existing.id === editingAccount.id);
+    const missingExport = exportingQr !== null && !accounts.some(existing => existing.id === exportingQr.account.id);
+    if (!missingEdit && !missingExport) return;
 
-    const id = editingAccount.id;
-    setEditingAccount(null);
+    const id = missingEdit ? editingAccount.id : exportingQr!.account.id;
+    if (missingEdit) setEditingAccount(null);
+    if (missingExport) setExportingQr(null);
     if (goneAccountRef.current !== id) toast('info', t('accounts.notFound'));
     goneAccountRef.current = id;
     // `t` is rebuilt every render; the language changing is no reason to re-check.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts, loading, error, vaultHidingAccounts, editingAccount]);
+  }, [accounts, loading, error, vaultHidingAccounts, editingAccount, exportingQr]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1392,6 +1416,7 @@ function App() {
                     account={suggestedAccount}
                     onDelete={handleDeleteAccount}
                     onEdit={setEditingAccount}
+                    onExportQr={handleExportQr}
                     language={language}
                     viewMode={viewMode}
                     showAvatar={showAvatars}
@@ -1412,6 +1437,7 @@ function App() {
                 account={account}
                 onDelete={handleDeleteAccount}
                 onEdit={setEditingAccount}
+                onExportQr={handleExportQr}
                 language={language}
                 viewMode={viewMode}
                 showAvatar={showAvatars}
@@ -1470,6 +1496,15 @@ function App() {
           language={language}
           groups={groups.map(group => group.name)}
           accounts={accounts}
+        />
+      )}
+
+      {exportingQr && (
+        <ExportQrModal
+          account={exportingQr.account}
+          url={exportingQr.url}
+          language={language}
+          onClose={() => setExportingQr(null)}
         />
       )}
 
