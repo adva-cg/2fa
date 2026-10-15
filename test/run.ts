@@ -33,6 +33,7 @@ const suites = [
   ['writing from two surfaces at once', () => import('./concurrency.test')],
   ['shared vectors', () => import('./parity.test')],
   ['sharing codes by link', () => import('./share.test')],
+  ['exporting one account as a QR', () => import('./qr-export.test')],
   ['where the app opens', () => import('./open-mode.test')],
   ['language detection', () => import('./i18n.test')],
   ['what the popup puts on screen', () => import('./ui-state.test')],
