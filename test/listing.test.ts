@@ -13,10 +13,11 @@
 // can be checked even where the sentence around them cannot.
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { check, scenario } from './harness';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const TRANSLATIONS = join(ROOT, 'public', 'translations');
 
 interface Manifest {
